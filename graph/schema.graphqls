@@ -1,0 +1,130 @@
+type User {
+  id: ID!
+  userID: ID!
+  userImage: String
+  firstName: String
+  lastName: String
+  email: String
+  phone: String
+  password: String
+  city: String
+  country: String
+  balance: [Balance]
+  investment: [Investment]
+  credits: [Credit]
+  reference: [Reference]
+  assets: [Asset]
+  history: [History]
+  transactions: [Transaction]
+  notification: [Notification]
+}
+
+type Balance {
+  id: ID!
+  userID: ID!
+  name: String
+  amount: Float
+}
+
+type Investment {
+  id: ID!
+  userID: ID!
+  name: String
+  amount: Float
+}
+
+type Credit {
+  id: ID!
+  userID: ID!
+  name: String
+  amount: Float
+}
+
+type Reference {
+  id: ID!
+  userID: ID!
+  name: String
+  amount: Float
+}
+
+type Asset {
+  id: ID!
+  userID: ID!
+  name: String 
+  amount: Float
+}
+
+type History {
+  id: ID!
+  userID: ID!
+  entityType: String
+  actionType: String
+  changedData: String
+  timestamp: String
+}
+
+type Transaction {
+  id: ID!
+  userID: ID!
+  detail: String
+  amount: Float
+}
+
+type Notification {
+  id: ID!
+  userid: ID!
+  message: String!
+  seen: Boolean!
+  timestamp: String
+}
+
+type Verify{
+  id: ID!  
+  uniqueverifier: String!
+  email: String!
+}
+
+type Query {
+  getAllUsers: [User]
+  getUser(userID: ID!): User
+  getAllAssets: [Asset]
+  getAsset(assetID: ID!): Asset
+  getUserAssets(userID: ID!): [Asset]
+  getAllHistory: [History]
+  getHistory(id: ID!): History
+  getUserHistory(userID: ID!): [History]
+  getAllTransactions: [Transaction]
+  getTransaction(id: ID!): Transaction
+  getUserTransactions(userID: ID!): [Transaction]
+  getAllNotification: [Notification]
+  getUserNotifications(userID: String!): [Notification!]
+  getAllUnverifiedEmails:[Verify]
+  getUnverifiedEmail(email: String!): Verify
+}
+
+input CreateUserInput {
+  userImage: String
+  firstName: String
+  lastName: String
+  email: String
+  phone: String
+  password: String
+  city: String
+  country: String
+}
+
+type Mutation {
+  createUser(input: CreateUserInput!): User
+  login(email: String!, password: String!): String!
+  editUser(userID: ID!, input: CreateUserInput!): User
+  deleteAllUsers: Boolean
+  deleteUser(userID: ID!): Boolean
+  deleteAllHistory: Boolean
+  deleteHistory(id: ID!): Boolean
+  deleteAllTransactions: Boolean
+  deleteTransaction(id: ID!): Boolean
+  createNotification(userID: ID!, message: String!): Notification!
+  markNotificationAsSeen(id: String!): Notification!
+  deleteAllUnverifiedEmails: [Verify]
+  deleteUnverifiedEmail(email: String!): Verify
+}
