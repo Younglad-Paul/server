@@ -31,6 +31,17 @@ func getStringOrDefault(value *string, defaultValue string) string {
 	return *value
 }
 
+
+// Timestamp is the resolver for the timestamp field.
+func (r *balanceResolver) Timestamp(ctx context.Context, obj *model.Balance) (*string, error) {
+	panic(fmt.Errorf("not implemented: Timestamp - timestamp"))
+}
+
+// Timestamp is the resolver for the timestamp field.
+func (r *creditResolver) Timestamp(ctx context.Context, obj *model.Credit) (*string, error) {
+	panic(fmt.Errorf("not implemented: Timestamp - timestamp"))
+}
+
 // Timestamp is the resolver for the timestamp field.
 func (r *historyResolver) Timestamp(ctx context.Context, obj *model.History) (*string, error) {
 	if obj == nil || obj.Timestamp.IsZero() {
@@ -39,6 +50,11 @@ func (r *historyResolver) Timestamp(ctx context.Context, obj *model.History) (*s
 
 	timestampStr := obj.Timestamp.Format(time.RFC3339)
 	return &timestampStr, nil
+}
+
+// Timestamp is the resolver for the timestamp field.
+func (r *investmentResolver) Timestamp(ctx context.Context, obj *model.Investment) (*string, error) {
+	panic(fmt.Errorf("not implemented: Timestamp - timestamp"))
 }
 
 // CreateUser is the resolver for the createUser field.
@@ -76,7 +92,30 @@ func (r *mutationResolver) CreateUser(ctx context.Context, input model.CreateUse
 	if err != nil {
 		return nil, fmt.Errorf("error creating user: %v", err)
 	}
-
+	// Create a Balance record
+	BalanceInit := r.MongoClient.Database(os.Getenv("DB_NAME")).Collection(os.Getenv("BALANCES"))
+	err = utils.CreateBalance(ctx, BalanceInit, user.UserID)
+	if err != nil {
+		return nil, fmt.Errorf("error creating balance: %v", err)
+	}
+	// Create an Investment record
+	InvestmentInit := r.MongoClient.Database(os.Getenv("DB_NAME")).Collection(os.Getenv("INVESTMENTS"))
+	err = utils.CreateInvestment(ctx, InvestmentInit, user.UserID)
+	if err != nil {
+		return nil, fmt.Errorf("error creating investment: %v", err)
+	}
+	// Create a credit record
+	CreditInit := r.MongoClient.Database(os.Getenv("DB_NAME")).Collection(os.Getenv("CREDITS"))
+	err = utils.CreateCredit(ctx, CreditInit, user.UserID)
+	if err != nil {
+		return nil, fmt.Errorf("error creating credit: %v", err)
+	}
+	// Create a reference record
+	ReferenceInit := r.MongoClient.Database(os.Getenv("DB_NAME")).Collection(os.Getenv("REFERERS"))
+	err = utils.CreateReference(ctx, ReferenceInit, user.UserID)
+	if err != nil {
+		return nil, fmt.Errorf("error creating balance: %v", err)
+	}
 	// Create a history record
 	historyCollection := r.MongoClient.Database(os.Getenv("DB_NAME")).Collection(os.Getenv("HISTORY_LOG"))
 	err = utils.CreateHistoryRecord(ctx, historyCollection, user.UserID, "User", "Create", fmt.Sprintf(`Created Account with email: "%s"`, user.Email))
@@ -209,6 +248,26 @@ func (r *mutationResolver) DeleteUser(ctx context.Context, userID string) (*bool
 	panic(fmt.Errorf("not implemented: DeleteUser - deleteUser"))
 }
 
+// DeleteBalance is the resolver for the deleteBalance field.
+func (r *mutationResolver) DeleteBalance(ctx context.Context, id string) (*bool, error) {
+	panic(fmt.Errorf("not implemented: DeleteBalance - deleteBalance"))
+}
+
+// DeleteInvestment is the resolver for the deleteInvestment field.
+func (r *mutationResolver) DeleteInvestment(ctx context.Context, id string) (*bool, error) {
+	panic(fmt.Errorf("not implemented: DeleteInvestment - deleteInvestment"))
+}
+
+// DeleteCredit is the resolver for the deleteCredit field.
+func (r *mutationResolver) DeleteCredit(ctx context.Context, id string) (*bool, error) {
+	panic(fmt.Errorf("not implemented: DeleteCredit - deleteCredit"))
+}
+
+// DeleteReference is the resolver for the deleteReference field.
+func (r *mutationResolver) DeleteReference(ctx context.Context, id string) (*bool, error) {
+	panic(fmt.Errorf("not implemented: DeleteReference - deleteReference"))
+}
+
 // DeleteAllHistory is the resolver for the deleteAllHistory field.
 func (r *mutationResolver) DeleteAllHistory(ctx context.Context) (*bool, error) {
 	panic(fmt.Errorf("not implemented: DeleteAllHistory - deleteAllHistory"))
@@ -328,6 +387,74 @@ func (r *queryResolver) GetUser(ctx context.Context, userID string) (*model.User
 	}
 
 	return &user, nil
+}
+
+// GetBalance is the resolver for the getBalance field.
+func (r *queryResolver) GetBalance(ctx context.Context, userID string) (*model.Balance, error) {
+	collection := r.MongoClient.Database(os.Getenv("DB_NAME")).Collection(os.Getenv("BALANCES"))
+
+	var balance model.Balance
+	filter := bson.M{"userid": userID}
+
+	err := collection.FindOne(ctx, filter).Decode(&balance)
+	if err == mongo.ErrNoDocuments{
+		return nil, fmt.Errorf("no history found for user %v", userID)
+	} else if err != nil{
+		return nil, fmt.Errorf("error finding balance: %v", err)
+	}
+
+	return &balance, nil
+}
+
+// GetInvestment is the resolver for the getInvestment field.
+func (r *queryResolver) GetInvestment(ctx context.Context, userID string) (*model.Investment, error) {
+	collection := r.MongoClient.Database(os.Getenv("DB_NAME")).Collection(os.Getenv("INVESTMENTS"))
+
+	var investment model.Investment
+	filter := bson.M{"userid": userID}
+
+	err := collection.FindOne(ctx, filter).Decode(&investment)
+	if err == mongo.ErrNoDocuments {
+        return nil, fmt.Errorf("no investment found for user %v", userID)
+    } else if err!= nil {
+        return nil, fmt.Errorf("error finding investment: %v", err)
+    }
+
+	return &investment, nil
+}
+
+// GetCredit is the resolver for the getCredit field.
+func (r *queryResolver) GetCredit(ctx context.Context, userID string) (*model.Credit, error) {
+	collection := r.MongoClient.Database(os.Getenv("DB_NAME")).Collection(os.Getenv("CREDITS"))
+
+    var credit model.Credit
+    filter := bson.M{"userid": userID}
+
+    err := collection.FindOne(ctx, filter).Decode(&credit)
+    if err == mongo.ErrNoDocuments {
+        return nil, fmt.Errorf("no credit found for user %v", userID)
+    } else if err!= nil {
+        return nil, fmt.Errorf("error finding credit: %v", err)
+    }
+
+    return &credit, nil
+}
+
+// GetReference is the resolver for the getReference field.
+func (r *queryResolver) GetReference(ctx context.Context, userID string) (*model.Reference, error) {
+	collection := r.MongoClient.Database(os.Getenv("DB_NAME")).Collection(os.Getenv("REFERERS"))
+
+    var reference model.Reference
+    filter := bson.M{"userid": userID}
+
+    err := collection.FindOne(ctx, filter).Decode(&reference)
+    if err == mongo.ErrNoDocuments {
+        return nil, fmt.Errorf("no reference found for user %v", userID)
+    } else if err!= nil {
+        return nil, fmt.Errorf("error finding reference: %v", err)
+    }
+
+    return &reference, nil
 }
 
 // GetAllAssets is the resolver for the getAllAssets field.
@@ -501,6 +628,11 @@ func (r *queryResolver) GetUnverifiedEmail(ctx context.Context, email string) (*
 	return &user, nil
 }
 
+// Timestamp is the resolver for the timestamp field.
+func (r *referenceResolver) Timestamp(ctx context.Context, obj *model.Reference) (*string, error) {
+	panic(fmt.Errorf("not implemented: Timestamp - timestamp"))
+}
+
 // ID is the resolver for the id field.
 func (r *userResolver) ID(ctx context.Context, obj *model.User) (string, error) {
 	panic(fmt.Errorf("not implemented: ID - id"))
@@ -572,8 +704,17 @@ func (r *verifyResolver) ID(ctx context.Context, obj *model.Verify) (string, err
 	panic(fmt.Errorf("not implemented: ID - id"))
 }
 
+// Balance returns BalanceResolver implementation.
+func (r *Resolver) Balance() BalanceResolver { return &balanceResolver{r} }
+
+// Credit returns CreditResolver implementation.
+func (r *Resolver) Credit() CreditResolver { return &creditResolver{r} }
+
 // History returns HistoryResolver implementation.
 func (r *Resolver) History() HistoryResolver { return &historyResolver{r} }
+
+// Investment returns InvestmentResolver implementation.
+func (r *Resolver) Investment() InvestmentResolver { return &investmentResolver{r} }
 
 // Mutation returns MutationResolver implementation.
 func (r *Resolver) Mutation() MutationResolver { return &mutationResolver{r} }
@@ -584,22 +725,22 @@ func (r *Resolver) Notification() NotificationResolver { return &notificationRes
 // Query returns QueryResolver implementation.
 func (r *Resolver) Query() QueryResolver { return &queryResolver{r} }
 
+// Reference returns ReferenceResolver implementation.
+func (r *Resolver) Reference() ReferenceResolver { return &referenceResolver{r} }
+
 // User returns UserResolver implementation.
 func (r *Resolver) User() UserResolver { return &userResolver{r} }
 
 // Verify returns VerifyResolver implementation.
 func (r *Resolver) Verify() VerifyResolver { return &verifyResolver{r} }
 
+type balanceResolver struct{ *Resolver }
+type creditResolver struct{ *Resolver }
 type historyResolver struct{ *Resolver }
+type investmentResolver struct{ *Resolver }
 type mutationResolver struct{ *Resolver }
 type notificationResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }
+type referenceResolver struct{ *Resolver }
 type userResolver struct{ *Resolver }
 type verifyResolver struct{ *Resolver }
-
-// !!! WARNING !!!
-// The code below was going to be deleted when updating resolvers. It has been copied here so you have
-// one last chance to move it out of harms way if you want. There are two reasons this happens:
-//   - When renaming or deleting a resolver the old code will be put in here. You can safely delete
-//     it when you're done.
-//   - You have helper methods in this file. Move them out to keep these resolver files clean.

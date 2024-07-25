@@ -22,29 +22,29 @@ type User {
 type Balance {
   id: ID!
   userID: ID!
-  name: String
   amount: Float
+  timestamp: String
 }
 
 type Investment {
   id: ID!
   userID: ID!
-  name: String
   amount: Float
+  timestamp: String
 }
 
 type Credit {
   id: ID!
   userID: ID!
-  name: String
   amount: Float
+  timestamp: String
 }
 
 type Reference {
   id: ID!
   userID: ID!
-  name: String
   amount: Float
+  timestamp: String
 }
 
 type Asset {
@@ -87,6 +87,10 @@ type Verify{
 type Query {
   getAllUsers: [User]
   getUser(userID: ID!): User
+  getBalance(userID: ID!): Balance
+  getInvestment(userID: ID!): Investment
+  getCredit(userID: ID!): Credit
+  getReference(userID: ID!): Reference
   getAllAssets: [Asset]
   getAsset(assetID: ID!): Asset
   getUserAssets(userID: ID!): [Asset]
@@ -119,6 +123,10 @@ type Mutation {
   editUser(userID: ID!, input: CreateUserInput!): User
   deleteAllUsers: Boolean
   deleteUser(userID: ID!): Boolean
+  deleteBalance(id: ID!): Boolean
+  deleteInvestment(id: ID!): Boolean
+  deleteCredit(id: ID!): Boolean
+  deleteReference(id: ID!): Boolean
   deleteAllHistory: Boolean
   deleteHistory(id: ID!): Boolean
   deleteAllTransactions: Boolean
