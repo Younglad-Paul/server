@@ -124,6 +124,7 @@ type ComplexityRoot struct {
 		GetAllAssets           func(childComplexity int) int
 		GetAllHistory          func(childComplexity int) int
 		GetAllNotification     func(childComplexity int) int
+		GetAllReferral         func(childComplexity int) int
 		GetAllTransactions     func(childComplexity int) int
 		GetAllUnverifiedEmails func(childComplexity int) int
 		GetAllUsers            func(childComplexity int) int
@@ -133,6 +134,7 @@ type ComplexityRoot struct {
 		GetHistory             func(childComplexity int, id string) int
 		GetInvestment          func(childComplexity int, userID string) int
 		GetReference           func(childComplexity int, userID string) int
+		GetReferral            func(childComplexity int, userID *string) int
 		GetTransaction         func(childComplexity int, id string) int
 		GetUnverifiedEmail     func(childComplexity int, email string) int
 		GetUser                func(childComplexity int, userID string) int
@@ -147,6 +149,12 @@ type ComplexityRoot struct {
 		ID        func(childComplexity int) int
 		Timestamp func(childComplexity int) int
 		UserID    func(childComplexity int) int
+	}
+
+	Referral struct {
+		ID     func(childComplexity int) int
+		Link   func(childComplexity int) int
+		UserID func(childComplexity int) int
 	}
 
 	Transaction struct {
@@ -225,6 +233,8 @@ type QueryResolver interface {
 	GetInvestment(ctx context.Context, userID string) (*model.Investment, error)
 	GetCredit(ctx context.Context, userID string) (*model.Credit, error)
 	GetReference(ctx context.Context, userID string) (*model.Reference, error)
+	GetAllReferral(ctx context.Context) ([]*model.Referral, error)
+	GetReferral(ctx context.Context, userID *string) (*model.Referral, error)
 	GetAllAssets(ctx context.Context) ([]*model.Asset, error)
 	GetAsset(ctx context.Context, assetID string) (*model.Asset, error)
 	GetUserAssets(ctx context.Context, userID string) ([]*model.Asset, error)
@@ -671,6 +681,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Query.GetAllNotification(childComplexity), true
 
+	case "Query.getAllReferral":
+		if e.complexity.Query.GetAllReferral == nil {
+			break
+		}
+
+		return e.complexity.Query.GetAllReferral(childComplexity), true
+
 	case "Query.getAllTransactions":
 		if e.complexity.Query.GetAllTransactions == nil {
 			break
@@ -763,6 +780,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Query.GetReference(childComplexity, args["userID"].(string)), true
+
+	case "Query.getReferral":
+		if e.complexity.Query.GetReferral == nil {
+			break
+		}
+
+		args, err := ec.field_Query_getReferral_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.GetReferral(childComplexity, args["userID"].(*string)), true
 
 	case "Query.getTransaction":
 		if e.complexity.Query.GetTransaction == nil {
@@ -875,6 +904,27 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Reference.UserID(childComplexity), true
+
+	case "Referral.id":
+		if e.complexity.Referral.ID == nil {
+			break
+		}
+
+		return e.complexity.Referral.ID(childComplexity), true
+
+	case "Referral.link":
+		if e.complexity.Referral.Link == nil {
+			break
+		}
+
+		return e.complexity.Referral.Link(childComplexity), true
+
+	case "Referral.userID":
+		if e.complexity.Referral.UserID == nil {
+			break
+		}
+
+		return e.complexity.Referral.UserID(childComplexity), true
 
 	case "Transaction.amount":
 		if e.complexity.Transaction.Amount == nil {
@@ -1495,6 +1545,21 @@ func (ec *executionContext) field_Query_getReference_args(ctx context.Context, r
 	if tmp, ok := rawArgs["userID"]; ok {
 		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("userID"))
 		arg0, err = ec.unmarshalNID2string(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["userID"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_getReferral_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 *string
+	if tmp, ok := rawArgs["userID"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("userID"))
+		arg0, err = ec.unmarshalOID2ᚖstring(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
@@ -4177,6 +4242,115 @@ func (ec *executionContext) fieldContext_Query_getReference(ctx context.Context,
 	return fc, nil
 }
 
+func (ec *executionContext) _Query_getAllReferral(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_getAllReferral(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().GetAllReferral(rctx)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.([]*model.Referral)
+	fc.Result = res
+	return ec.marshalOReferral2ᚕᚖbackendᚋgraphᚋmodelᚐReferral(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_getAllReferral(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Referral_id(ctx, field)
+			case "userID":
+				return ec.fieldContext_Referral_userID(ctx, field)
+			case "link":
+				return ec.fieldContext_Referral_link(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Referral", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_getReferral(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_getReferral(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().GetReferral(rctx, fc.Args["userID"].(*string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*model.Referral)
+	fc.Result = res
+	return ec.marshalOReferral2ᚖbackendᚋgraphᚋmodelᚐReferral(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_getReferral(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Referral_id(ctx, field)
+			case "userID":
+				return ec.fieldContext_Referral_userID(ctx, field)
+			case "link":
+				return ec.fieldContext_Referral_link(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Referral", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_getReferral_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Query_getAllAssets(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Query_getAllAssets(ctx, field)
 	if err != nil {
@@ -5232,6 +5406,135 @@ func (ec *executionContext) fieldContext_Reference_timestamp(_ context.Context, 
 		Field:      field,
 		IsMethod:   true,
 		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Referral_id(ctx context.Context, field graphql.CollectedField, obj *model.Referral) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Referral_id(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNID2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Referral_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Referral",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Referral_userID(ctx context.Context, field graphql.CollectedField, obj *model.Referral) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Referral_userID(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.UserID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNID2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Referral_userID(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Referral",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Referral_link(ctx context.Context, field graphql.CollectedField, obj *model.Referral) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Referral_link(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Link, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalOString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Referral_link(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Referral",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type String does not have child fields")
 		},
@@ -8935,6 +9238,44 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "getAllReferral":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_getAllReferral(ctx, field)
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "getReferral":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_getReferral(ctx, field)
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
 		case "getAllAssets":
 			field := field
 
@@ -9269,6 +9610,52 @@ func (ec *executionContext) _Reference(ctx context.Context, sel ast.SelectionSet
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var referralImplementors = []string{"Referral"}
+
+func (ec *executionContext) _Referral(ctx context.Context, sel ast.SelectionSet, obj *model.Referral) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, referralImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("Referral")
+		case "id":
+			out.Values[i] = ec._Referral_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "userID":
+			out.Values[i] = ec._Referral_userID(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "link":
+			out.Values[i] = ec._Referral_link(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -10662,6 +11049,22 @@ func (ec *executionContext) marshalOHistory2ᚖbackendᚋgraphᚋmodelᚐHistory
 	return ec._History(ctx, sel, v)
 }
 
+func (ec *executionContext) unmarshalOID2ᚖstring(ctx context.Context, v interface{}) (*string, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := graphql.UnmarshalID(v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOID2ᚖstring(ctx context.Context, sel ast.SelectionSet, v *string) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	res := graphql.MarshalID(*v)
+	return res
+}
+
 func (ec *executionContext) marshalOInvestment2ᚕᚖbackendᚋgraphᚋmodelᚐInvestment(ctx context.Context, sel ast.SelectionSet, v []*model.Investment) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
@@ -10851,6 +11254,54 @@ func (ec *executionContext) marshalOReference2ᚖbackendᚋgraphᚋmodelᚐRefer
 		return graphql.Null
 	}
 	return ec._Reference(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalOReferral2ᚕᚖbackendᚋgraphᚋmodelᚐReferral(ctx context.Context, sel ast.SelectionSet, v []*model.Referral) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalOReferral2ᚖbackendᚋgraphᚋmodelᚐReferral(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	return ret
+}
+
+func (ec *executionContext) marshalOReferral2ᚖbackendᚋgraphᚋmodelᚐReferral(ctx context.Context, sel ast.SelectionSet, v *model.Referral) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._Referral(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalOString2string(ctx context.Context, v interface{}) (string, error) {

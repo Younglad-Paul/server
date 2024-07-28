@@ -47,6 +47,12 @@ type Reference {
   timestamp: String
 }
 
+type Referral {
+  id: ID!
+  userID: ID!
+  link: String
+}
+
 type Asset {
   id: ID!
   userID: ID!
@@ -91,6 +97,8 @@ type Query {
   getInvestment(userID: ID!): Investment
   getCredit(userID: ID!): Credit
   getReference(userID: ID!): Reference
+  getAllReferral: [Referral]
+  getReferral(userID: ID): Referral
   getAllAssets: [Asset]
   getAsset(assetID: ID!): Asset
   getUserAssets(userID: ID!): [Asset]

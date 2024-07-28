@@ -118,7 +118,7 @@ func (r *mutationResolver) CreateUser(ctx context.Context, input model.CreateUse
 	}
 	// Create a history record
 	historyCollection := r.MongoClient.Database(os.Getenv("DB_NAME")).Collection(os.Getenv("HISTORY_LOG"))
-	err = utils.CreateHistoryRecord(ctx, historyCollection, user.UserID, "User", "Create", fmt.Sprintf(`Created Account with email: "%s"`, user.Email))
+	err = utils.CreateHistoryRecord(ctx, historyCollection, user.UserID, "User", "Created", fmt.Sprintf(`Created Account with email: "%s"`, user.Email))
 	if err != nil {
 		return nil, fmt.Errorf("error creating history: %v", err)
 	}
@@ -134,6 +134,12 @@ func (r *mutationResolver) CreateUser(ctx context.Context, input model.CreateUse
 	err = utils.CreateVerificationCode(ctx, generateVerificationCode, user.Email)
 	if err != nil {
 		return nil, fmt.Errorf("error passing email: %v", err)
+	}
+
+	generateReferralCode := r.MongoClient.Database(os.Getenv("DB_NAME")).Collection(os.Getenv("REFERRAL"))
+	err = utils.CreateReferralCode(ctx, generateReferralCode, user.UserID)
+	if err != nil {
+		return nil, fmt.Errorf("error creating  personalized user referral code: %v", err)
 	}
 
 	return user, nil
@@ -397,9 +403,9 @@ func (r *queryResolver) GetBalance(ctx context.Context, userID string) (*model.B
 	filter := bson.M{"userid": userID}
 
 	err := collection.FindOne(ctx, filter).Decode(&balance)
-	if err == mongo.ErrNoDocuments{
+	if err == mongo.ErrNoDocuments {
 		return nil, fmt.Errorf("no history found for user %v", userID)
-	} else if err != nil{
+	} else if err != nil {
 		return nil, fmt.Errorf("error finding balance: %v", err)
 	}
 
@@ -415,10 +421,10 @@ func (r *queryResolver) GetInvestment(ctx context.Context, userID string) (*mode
 
 	err := collection.FindOne(ctx, filter).Decode(&investment)
 	if err == mongo.ErrNoDocuments {
-        return nil, fmt.Errorf("no investment found for user %v", userID)
-    } else if err!= nil {
-        return nil, fmt.Errorf("error finding investment: %v", err)
-    }
+		return nil, fmt.Errorf("no investment found for user %v", userID)
+	} else if err != nil {
+		return nil, fmt.Errorf("error finding investment: %v", err)
+	}
 
 	return &investment, nil
 }
@@ -427,34 +433,75 @@ func (r *queryResolver) GetInvestment(ctx context.Context, userID string) (*mode
 func (r *queryResolver) GetCredit(ctx context.Context, userID string) (*model.Credit, error) {
 	collection := r.MongoClient.Database(os.Getenv("DB_NAME")).Collection(os.Getenv("CREDITS"))
 
-    var credit model.Credit
-    filter := bson.M{"userid": userID}
+	var credit model.Credit
+	filter := bson.M{"userid": userID}
 
-    err := collection.FindOne(ctx, filter).Decode(&credit)
-    if err == mongo.ErrNoDocuments {
-        return nil, fmt.Errorf("no credit found for user %v", userID)
-    } else if err!= nil {
-        return nil, fmt.Errorf("error finding credit: %v", err)
-    }
+	err := collection.FindOne(ctx, filter).Decode(&credit)
+	if err == mongo.ErrNoDocuments {
+		return nil, fmt.Errorf("no credit found for user %v", userID)
+	} else if err != nil {
+		return nil, fmt.Errorf("error finding credit: %v", err)
+	}
 
-    return &credit, nil
+	return &credit, nil
 }
 
 // GetReference is the resolver for the getReference field.
 func (r *queryResolver) GetReference(ctx context.Context, userID string) (*model.Reference, error) {
 	collection := r.MongoClient.Database(os.Getenv("DB_NAME")).Collection(os.Getenv("REFERERS"))
 
-    var reference model.Reference
-    filter := bson.M{"userid": userID}
+	var reference model.Reference
+	filter := bson.M{"userid": userID}
 
-    err := collection.FindOne(ctx, filter).Decode(&reference)
-    if err == mongo.ErrNoDocuments {
-        return nil, fmt.Errorf("no reference found for user %v", userID)
-    } else if err!= nil {
-        return nil, fmt.Errorf("error finding reference: %v", err)
-    }
+	err := collection.FindOne(ctx, filter).Decode(&reference)
+	if err == mongo.ErrNoDocuments {
+		return nil, fmt.Errorf("no reference found for user %v", userID)
+	} else if err != nil {
+		return nil, fmt.Errorf("error finding reference: %v", err)
+	}
 
-    return &reference, nil
+	return &reference, nil
+}
+
+// GetReferral is the resolver for the getReferral field.
+func (r *queryResolver) GetAllReferral(ctx context.Context) ([]*model.Referral, error) {
+	ref, err := r.MongoClient.Database(os.Getenv("DB_NAME")).Collection(os.Getenv("REFERRAL")).Find(ctx, bson.M{})
+	if err != nil {
+		return nil, fmt.Errorf("error fetching all referrals: %v", err)
+	}
+	defer ref.Close(ctx)
+
+	var result []*model.Referral
+	for ref.Next(ctx) {
+		var refer *model.Referral
+		if err := ref.Decode(&refer); err != nil {
+			return nil, fmt.Errorf("error decoding referral: %v", err)
+		}
+		result = append(result, refer)
+	}
+
+	if err := ref.Err(); err != nil {
+		return nil, fmt.Errorf("cursor error: %v", err)
+	}
+
+	return result, nil
+}
+
+// GetReferral is the resolver for the getReferral field.
+func (r *queryResolver) GetReferral(ctx context.Context, userID *string) (*model.Referral, error) {
+	collection := r.MongoClient.Database(os.Getenv("DB_NAME")).Collection(os.Getenv("REFERRAL"))
+
+	var referral model.Referral
+	filter := bson.M{"userid": userID}
+
+	err := collection.FindOne(ctx, filter).Decode(&referral)
+	if err == mongo.ErrNoDocuments {
+		return nil, fmt.Errorf("no referral found for user %v", userID)
+	} else if err != nil {
+		return nil, fmt.Errorf("error finding referral: %v", err)
+	}
+
+	return &referral, nil
 }
 
 // GetAllAssets is the resolver for the getAllAssets field.
