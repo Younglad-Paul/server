@@ -11,6 +11,7 @@ type CreateUserInput struct {
 	Password  *string `json:"password,omitempty"`
 	City      *string `json:"city,omitempty"`
 	Country   *string `json:"country,omitempty"`
+	Type      *string `json:"type,omitempty"`
 }
 
 type Mutation struct {

@@ -181,6 +181,7 @@ type ComplexityRoot struct {
 		Phone        func(childComplexity int) int
 		Reference    func(childComplexity int) int
 		Transactions func(childComplexity int) int
+		Type         func(childComplexity int) int
 		UserID       func(childComplexity int) int
 		UserImage    func(childComplexity int) int
 	}
@@ -1065,6 +1066,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.User.Transactions(childComplexity), true
+
+	case "User.type":
+		if e.complexity.User.Type == nil {
+			break
+		}
+
+		return e.complexity.User.Type(childComplexity), true
 
 	case "User.userID":
 		if e.complexity.User.UserID == nil {
@@ -2697,6 +2705,8 @@ func (ec *executionContext) fieldContext_Mutation_createUser(ctx context.Context
 				return ec.fieldContext_User_password(ctx, field)
 			case "city":
 				return ec.fieldContext_User_city(ctx, field)
+			case "type":
+				return ec.fieldContext_User_type(ctx, field)
 			case "country":
 				return ec.fieldContext_User_country(ctx, field)
 			case "balance":
@@ -2842,6 +2852,8 @@ func (ec *executionContext) fieldContext_Mutation_editUser(ctx context.Context, 
 				return ec.fieldContext_User_password(ctx, field)
 			case "city":
 				return ec.fieldContext_User_city(ctx, field)
+			case "type":
+				return ec.fieldContext_User_type(ctx, field)
 			case "country":
 				return ec.fieldContext_User_country(ctx, field)
 			case "balance":
@@ -3879,6 +3891,8 @@ func (ec *executionContext) fieldContext_Query_getAllUsers(_ context.Context, fi
 				return ec.fieldContext_User_password(ctx, field)
 			case "city":
 				return ec.fieldContext_User_city(ctx, field)
+			case "type":
+				return ec.fieldContext_User_type(ctx, field)
 			case "country":
 				return ec.fieldContext_User_country(ctx, field)
 			case "balance":
@@ -3958,6 +3972,8 @@ func (ec *executionContext) fieldContext_Query_getUser(ctx context.Context, fiel
 				return ec.fieldContext_User_password(ctx, field)
 			case "city":
 				return ec.fieldContext_User_city(ctx, field)
+			case "type":
+				return ec.fieldContext_User_type(ctx, field)
 			case "country":
 				return ec.fieldContext_User_country(ctx, field)
 			case "balance":
@@ -6075,6 +6091,47 @@ func (ec *executionContext) _User_city(ctx context.Context, field graphql.Collec
 }
 
 func (ec *executionContext) fieldContext_User_city(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "User",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _User_type(ctx context.Context, field graphql.CollectedField, obj *model.User) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_User_type(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Type, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalOString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_User_type(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "User",
 		Field:      field,
@@ -8454,7 +8511,7 @@ func (ec *executionContext) unmarshalInputCreateUserInput(ctx context.Context, o
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"userImage", "firstName", "lastName", "email", "phone", "password", "city", "country"}
+	fieldsInOrder := [...]string{"userImage", "firstName", "lastName", "email", "phone", "password", "city", "country", "type"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -8517,6 +8574,13 @@ func (ec *executionContext) unmarshalInputCreateUserInput(ctx context.Context, o
 				return it, err
 			}
 			it.Country = data
+		case "type":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("type"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Type = data
 		}
 	}
 
@@ -9793,6 +9857,8 @@ func (ec *executionContext) _User(ctx context.Context, sel ast.SelectionSet, obj
 			out.Values[i] = ec._User_password(ctx, field, obj)
 		case "city":
 			out.Values[i] = ec._User_city(ctx, field, obj)
+		case "type":
+			out.Values[i] = ec._User_type(ctx, field, obj)
 		case "country":
 			out.Values[i] = ec._User_country(ctx, field, obj)
 		case "balance":

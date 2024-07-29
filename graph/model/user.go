@@ -10,4 +10,5 @@ type User struct {
 	Password  string
 	City      string
 	Country   string
+	Type	  string
 }
