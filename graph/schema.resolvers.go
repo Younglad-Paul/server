@@ -34,12 +34,22 @@ func getStringOrDefault(value *string, defaultValue string) string {
 
 // Timestamp is the resolver for the timestamp field.
 func (r *balanceResolver) Timestamp(ctx context.Context, obj *model.Balance) (*string, error) {
-	panic(fmt.Errorf("not implemented: Timestamp - timestamp"))
+	if obj == nil || obj.Timestamp.IsZero() {
+		return nil, nil
+	}
+
+	timestampStr := obj.Timestamp.Format(time.RFC3339)
+	return &timestampStr, nil
 }
 
 // Timestamp is the resolver for the timestamp field.
 func (r *creditResolver) Timestamp(ctx context.Context, obj *model.Credit) (*string, error) {
-	panic(fmt.Errorf("not implemented: Timestamp - timestamp"))
+	if obj == nil || obj.Timestamp.IsZero() {
+		return nil, nil
+	}
+
+	timestampStr := obj.Timestamp.Format(time.RFC3339)
+	return &timestampStr, nil
 }
 
 // Timestamp is the resolver for the timestamp field.
@@ -54,7 +64,12 @@ func (r *historyResolver) Timestamp(ctx context.Context, obj *model.History) (*s
 
 // Timestamp is the resolver for the timestamp field.
 func (r *investmentResolver) Timestamp(ctx context.Context, obj *model.Investment) (*string, error) {
-	panic(fmt.Errorf("not implemented: Timestamp - timestamp"))
+	if obj == nil || obj.Timestamp.IsZero() {
+		return nil, nil
+	}
+
+	timestampStr := obj.Timestamp.Format(time.RFC3339)
+	return &timestampStr, nil
 }
 
 // CreateUser is the resolver for the createUser field.
