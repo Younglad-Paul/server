@@ -122,8 +122,12 @@ type ComplexityRoot struct {
 
 	Query struct {
 		GetAllAssets           func(childComplexity int) int
+		GetAllBalances         func(childComplexity int) int
+		GetAllCredits          func(childComplexity int) int
 		GetAllHistory          func(childComplexity int) int
+		GetAllInvestments      func(childComplexity int) int
 		GetAllNotification     func(childComplexity int) int
+		GetAllReferences       func(childComplexity int) int
 		GetAllReferral         func(childComplexity int) int
 		GetAllTransactions     func(childComplexity int) int
 		GetAllUnverifiedEmails func(childComplexity int) int
@@ -230,9 +234,13 @@ type NotificationResolver interface {
 type QueryResolver interface {
 	GetAllUsers(ctx context.Context) ([]*model.User, error)
 	GetUser(ctx context.Context, userID string) (*model.User, error)
+	GetAllBalances(ctx context.Context) ([]*model.Balance, error)
 	GetBalance(ctx context.Context, userID string) (*model.Balance, error)
+	GetAllInvestments(ctx context.Context) ([]*model.Investment, error)
 	GetInvestment(ctx context.Context, userID string) (*model.Investment, error)
+	GetAllCredits(ctx context.Context) ([]*model.Credit, error)
 	GetCredit(ctx context.Context, userID string) (*model.Credit, error)
+	GetAllReferences(ctx context.Context) ([]*model.Reference, error)
 	GetReference(ctx context.Context, userID string) (*model.Reference, error)
 	GetAllReferral(ctx context.Context) ([]*model.Referral, error)
 	GetReferral(ctx context.Context, userID *string) (*model.Referral, error)
@@ -668,6 +676,20 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Query.GetAllAssets(childComplexity), true
 
+	case "Query.getAllBalances":
+		if e.complexity.Query.GetAllBalances == nil {
+			break
+		}
+
+		return e.complexity.Query.GetAllBalances(childComplexity), true
+
+	case "Query.getAllCredits":
+		if e.complexity.Query.GetAllCredits == nil {
+			break
+		}
+
+		return e.complexity.Query.GetAllCredits(childComplexity), true
+
 	case "Query.getAllHistory":
 		if e.complexity.Query.GetAllHistory == nil {
 			break
@@ -675,12 +697,26 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Query.GetAllHistory(childComplexity), true
 
+	case "Query.getAllInvestments":
+		if e.complexity.Query.GetAllInvestments == nil {
+			break
+		}
+
+		return e.complexity.Query.GetAllInvestments(childComplexity), true
+
 	case "Query.getAllNotification":
 		if e.complexity.Query.GetAllNotification == nil {
 			break
 		}
 
 		return e.complexity.Query.GetAllNotification(childComplexity), true
+
+	case "Query.getAllReferences":
+		if e.complexity.Query.GetAllReferences == nil {
+			break
+		}
+
+		return e.complexity.Query.GetAllReferences(childComplexity), true
 
 	case "Query.getAllReferral":
 		if e.complexity.Query.GetAllReferral == nil {
@@ -4010,6 +4046,57 @@ func (ec *executionContext) fieldContext_Query_getUser(ctx context.Context, fiel
 	return fc, nil
 }
 
+func (ec *executionContext) _Query_getAllBalances(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_getAllBalances(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().GetAllBalances(rctx)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.([]*model.Balance)
+	fc.Result = res
+	return ec.marshalOBalance2ᚕᚖbackendᚋgraphᚋmodelᚐBalance(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_getAllBalances(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Balance_id(ctx, field)
+			case "userID":
+				return ec.fieldContext_Balance_userID(ctx, field)
+			case "amount":
+				return ec.fieldContext_Balance_amount(ctx, field)
+			case "timestamp":
+				return ec.fieldContext_Balance_timestamp(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Balance", field.Name)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Query_getBalance(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Query_getBalance(ctx, field)
 	if err != nil {
@@ -4068,6 +4155,57 @@ func (ec *executionContext) fieldContext_Query_getBalance(ctx context.Context, f
 	if fc.Args, err = ec.field_Query_getBalance_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_getAllInvestments(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_getAllInvestments(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().GetAllInvestments(rctx)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.([]*model.Investment)
+	fc.Result = res
+	return ec.marshalOInvestment2ᚕᚖbackendᚋgraphᚋmodelᚐInvestment(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_getAllInvestments(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Investment_id(ctx, field)
+			case "userID":
+				return ec.fieldContext_Investment_userID(ctx, field)
+			case "amount":
+				return ec.fieldContext_Investment_amount(ctx, field)
+			case "timestamp":
+				return ec.fieldContext_Investment_timestamp(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Investment", field.Name)
+		},
 	}
 	return fc, nil
 }
@@ -4134,6 +4272,57 @@ func (ec *executionContext) fieldContext_Query_getInvestment(ctx context.Context
 	return fc, nil
 }
 
+func (ec *executionContext) _Query_getAllCredits(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_getAllCredits(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().GetAllCredits(rctx)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.([]*model.Credit)
+	fc.Result = res
+	return ec.marshalOCredit2ᚕᚖbackendᚋgraphᚋmodelᚐCredit(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_getAllCredits(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Credit_id(ctx, field)
+			case "userID":
+				return ec.fieldContext_Credit_userID(ctx, field)
+			case "amount":
+				return ec.fieldContext_Credit_amount(ctx, field)
+			case "timestamp":
+				return ec.fieldContext_Credit_timestamp(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Credit", field.Name)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Query_getCredit(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Query_getCredit(ctx, field)
 	if err != nil {
@@ -4192,6 +4381,57 @@ func (ec *executionContext) fieldContext_Query_getCredit(ctx context.Context, fi
 	if fc.Args, err = ec.field_Query_getCredit_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_getAllReferences(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_getAllReferences(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().GetAllReferences(rctx)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.([]*model.Reference)
+	fc.Result = res
+	return ec.marshalOReference2ᚕᚖbackendᚋgraphᚋmodelᚐReference(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_getAllReferences(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Reference_id(ctx, field)
+			case "userID":
+				return ec.fieldContext_Reference_userID(ctx, field)
+			case "amount":
+				return ec.fieldContext_Reference_amount(ctx, field)
+			case "timestamp":
+				return ec.fieldContext_Reference_timestamp(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Reference", field.Name)
+		},
 	}
 	return fc, nil
 }
@@ -4982,7 +5222,7 @@ func (ec *executionContext) _Query_getUserNotifications(ctx context.Context, fie
 	}
 	res := resTmp.([]*model.Notification)
 	fc.Result = res
-	return ec.marshalONotification2ᚕᚖbackendᚋgraphᚋmodelᚐNotificationᚄ(ctx, field.Selections, res)
+	return ec.marshalONotification2ᚕᚖbackendᚋgraphᚋmodelᚐNotification(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_Query_getUserNotifications(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -9226,6 +9466,25 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "getAllBalances":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_getAllBalances(ctx, field)
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
 		case "getBalance":
 			field := field
 
@@ -9236,6 +9495,25 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_getBalance(ctx, field)
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "getAllInvestments":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_getAllInvestments(ctx, field)
 				return res
 			}
 
@@ -9264,6 +9542,25 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "getAllCredits":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_getAllCredits(ctx, field)
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
 		case "getCredit":
 			field := field
 
@@ -9274,6 +9571,25 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_getCredit(ctx, field)
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "getAllReferences":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_getAllReferences(ctx, field)
 				return res
 			}
 
@@ -11216,53 +11532,6 @@ func (ec *executionContext) marshalONotification2ᚕᚖbackendᚋgraphᚋmodel�
 
 	}
 	wg.Wait()
-
-	return ret
-}
-
-func (ec *executionContext) marshalONotification2ᚕᚖbackendᚋgraphᚋmodelᚐNotificationᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Notification) graphql.Marshaler {
-	if v == nil {
-		return graphql.Null
-	}
-	ret := make(graphql.Array, len(v))
-	var wg sync.WaitGroup
-	isLen1 := len(v) == 1
-	if !isLen1 {
-		wg.Add(len(v))
-	}
-	for i := range v {
-		i := i
-		fc := &graphql.FieldContext{
-			Index:  &i,
-			Result: &v[i],
-		}
-		ctx := graphql.WithFieldContext(ctx, fc)
-		f := func(i int) {
-			defer func() {
-				if r := recover(); r != nil {
-					ec.Error(ctx, ec.Recover(ctx, r))
-					ret = nil
-				}
-			}()
-			if !isLen1 {
-				defer wg.Done()
-			}
-			ret[i] = ec.marshalNNotification2ᚖbackendᚋgraphᚋmodelᚐNotification(ctx, sel, v[i])
-		}
-		if isLen1 {
-			f(i)
-		} else {
-			go f(i)
-		}
-
-	}
-	wg.Wait()
-
-	for _, e := range ret {
-		if e == graphql.Null {
-			return graphql.Null
-		}
-	}
 
 	return ret
 }

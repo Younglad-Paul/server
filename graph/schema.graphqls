@@ -34,6 +34,7 @@ type Investment {
   timestamp: String
 }
 
+
 type Credit {
   id: ID!
   userID: ID!
@@ -94,9 +95,13 @@ type Verify{
 type Query {
   getAllUsers: [User]
   getUser(userID: ID!): User
+  getAllBalances: [Balance]
   getBalance(userID: ID!): Balance
+  getAllInvestments: [Investment]
   getInvestment(userID: ID!): Investment
+  getAllCredits: [Credit]
   getCredit(userID: ID!): Credit
+  getAllReferences: [Reference]
   getReference(userID: ID!): Reference
   getAllReferral: [Referral]
   getReferral(userID: ID): Referral
@@ -110,7 +115,7 @@ type Query {
   getTransaction(id: ID!): Transaction
   getUserTransactions(userID: ID!): [Transaction]
   getAllNotification: [Notification]
-  getUserNotifications(userID: String!): [Notification!]
+  getUserNotifications(userID: String!): [Notification]
   getAllUnverifiedEmails:[Verify]
   getUnverifiedEmail(email: String!): Verify
 }

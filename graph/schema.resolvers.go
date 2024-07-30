@@ -396,6 +396,30 @@ func (r *queryResolver) GetUser(ctx context.Context, userID string) (*model.User
 	return &user, nil
 }
 
+// GetAllBalances is the resolver for the getAllBalances field.
+func (r *queryResolver) GetAllBalances(ctx context.Context) ([]*model.Balance, error) {
+	balances, err := r.MongoClient.Database(os.Getenv("DB_NAME")).Collection(os.Getenv("BALANCES")).Find(ctx, bson.M{})
+	if err != nil {
+		return nil, fmt.Errorf("error fetching balances: %v", err)
+	}
+	defer balances.Close(ctx)
+
+	var result []*model.Balance
+	for balances.Next(ctx) {
+		var balance *model.Balance
+		if err := balances.Decode(&balance); err != nil {
+			return nil, fmt.Errorf("error decoding balance: %v", err)
+		}
+		result = append(result, balance)
+	}
+
+	if err := balances.Err(); err != nil {
+		return nil, fmt.Errorf("cursor error: %v", err)
+	}
+
+	return result, nil
+}
+
 // GetBalance is the resolver for the getBalance field.
 func (r *queryResolver) GetBalance(ctx context.Context, userID string) (*model.Balance, error) {
 	collection := r.MongoClient.Database(os.Getenv("DB_NAME")).Collection(os.Getenv("BALANCES"))
@@ -411,6 +435,30 @@ func (r *queryResolver) GetBalance(ctx context.Context, userID string) (*model.B
 	}
 
 	return &balance, nil
+}
+
+// GetAllInvestments is the resolver for the getAllInvestments field.
+func (r *queryResolver) GetAllInvestments(ctx context.Context) ([]*model.Investment, error) {
+	investments, err := r.MongoClient.Database(os.Getenv("DB_NAME")).Collection(os.Getenv("INVESTMENTS")).Find(ctx, bson.M{})
+	if err != nil {
+		return nil, fmt.Errorf("error fetching investments: %v", err)
+	}
+	defer investments.Close(ctx)
+
+	var result []*model.Investment
+	for investments.Next(ctx) {
+		var investment *model.Investment
+		if err := investments.Decode(&investment); err != nil {
+			return nil, fmt.Errorf("error decoding investment: %v", err)
+		}
+		result = append(result, investment)
+	}
+
+	if err := investments.Err(); err != nil {
+		return nil, fmt.Errorf("cursor error: %v", err)
+	}
+
+	return result, nil
 }
 
 // GetInvestment is the resolver for the getInvestment field.
@@ -430,6 +478,30 @@ func (r *queryResolver) GetInvestment(ctx context.Context, userID string) (*mode
 	return &investment, nil
 }
 
+// GetAllCredits is the resolver for the getAllCredits field.
+func (r *queryResolver) GetAllCredits(ctx context.Context) ([]*model.Credit, error) {
+	credits, err := r.MongoClient.Database(os.Getenv("DB_NAME")).Collection(os.Getenv("CREDITS")).Find(ctx, bson.M{})
+	if err != nil {
+		return nil, fmt.Errorf("error fetching credits: %v", err)
+	}
+	defer credits.Close(ctx)
+
+	var result []*model.Credit
+	for credits.Next(ctx) {
+		var credit *model.Credit
+		if err := credits.Decode(&credits); err != nil {
+			return nil, fmt.Errorf("error decoding credit: %v", err)
+		}
+		result = append(result, credit)
+	}
+
+	if err := credits.Err(); err != nil {
+		return nil, fmt.Errorf("cursor error: %v", err)
+	}
+
+	return result, nil
+}
+
 // GetCredit is the resolver for the getCredit field.
 func (r *queryResolver) GetCredit(ctx context.Context, userID string) (*model.Credit, error) {
 	collection := r.MongoClient.Database(os.Getenv("DB_NAME")).Collection(os.Getenv("CREDITS"))
@@ -445,6 +517,28 @@ func (r *queryResolver) GetCredit(ctx context.Context, userID string) (*model.Cr
 	}
 
 	return &credit, nil
+}
+
+// GetAllReferences is the resolver for the getAllReferences field.
+func (r *queryResolver) GetAllReferences(ctx context.Context) ([]*model.Reference, error) {
+	references, err := r.MongoClient.Database(os.Getenv("DB_NAME")).Collection(os.Getenv("REFERERS")).Find(ctx, bson.M{})
+	if err != nil {
+		return nil, fmt.Errorf("error fetching references: %v", err)
+	}
+	defer references.Close(ctx)
+
+	var result []*model.Reference
+	for references.Next(ctx) {
+		var reference *model.Reference
+		if err := references.Decode(&reference); err != nil {
+			return nil, fmt.Errorf("error decoding reference: %v", err)
+		}
+		result = append(result, reference)
+	}
+	if err := references.Err(); err != nil {
+		return nil, fmt.Errorf("cursor error: %v", err)
+	}
+	return result, nil
 }
 
 // GetReference is the resolver for the getReference field.
@@ -607,7 +701,26 @@ func (r *queryResolver) GetUserTransactions(ctx context.Context, userID string) 
 
 // GetAllNotification is the resolver for the getAllNotification field.
 func (r *queryResolver) GetAllNotification(ctx context.Context) ([]*model.Notification, error) {
-	panic(fmt.Errorf("not implemented: GetAllNotification - getAllNotification"))
+	notifications, err := r.MongoClient.Database(os.Getenv("DB_NAME")).Collection(os.Getenv("NOTIFICATION_LOG")).Find(ctx, bson.M{})
+	if err != nil {
+		return nil, fmt.Errorf("error fetching notifications: %v", err)
+	}
+	defer notifications.Close(ctx)
+
+	var result []*model.Notification
+	for notifications.Next(ctx) {
+		var notification *model.Notification
+		if err := notifications.Decode(&notification); err != nil {
+			return nil, fmt.Errorf("error decoding notification: %v", err)
+		}
+		result = append(result, notification)
+	}
+
+	if err := notifications.Err(); err != nil {
+		return nil, fmt.Errorf("cursor error: %v", err)
+	}
+
+	return result, nil
 }
 
 // GetUserNotifications is the resolver for the getUserNotifications field.
@@ -792,10 +905,3 @@ type queryResolver struct{ *Resolver }
 type referenceResolver struct{ *Resolver }
 type userResolver struct{ *Resolver }
 type verifyResolver struct{ *Resolver }
-
-// !!! WARNING !!!
-// The code below was going to be deleted when updating resolvers. It has been copied here so you have
-// one last chance to move it out of harms way if you want. There are two reasons this happens:
-//   - When renaming or deleting a resolver the old code will be put in here. You can safely delete
-//     it when you're done.
-//   - You have helper methods in this file. Move them out to keep these resolver files clean.

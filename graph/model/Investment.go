@@ -3,10 +3,9 @@ package model
 import "time"
 
 type Investment struct {
-	ID     string   `json:"id"`
-	UserID string   `json:"userID"`
-	Amount *float64 `json:"amount,omitempty"`
-	Name   *string  `json:"name,omitempty"`
-	Timestamp   time.Time `bson:"timestamp"`
-
+	ID        string    `bson:"id"`
+	UserID    string    `bson:"userID"`
+	Amount    *float64  `bson:"amount,omitempty"`
+	Name      *string   `bson:"name,omitempty"`
+	Timestamp time.Time `bson:"timestamp"`
 }
