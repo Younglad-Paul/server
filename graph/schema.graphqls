@@ -92,6 +92,22 @@ type Verify{
   email: String!
 }
 
+type Plan {
+  id: ID!
+  title: String
+  amount: String
+  return: String
+  duration: String
+  referalBonus: String
+  description: [Description]
+}
+
+type Description {
+  id: ID!
+  point: String
+}
+
+
 type Query {
   getAllUsers: [User]
   getUser(userID: ID!): User
@@ -118,6 +134,8 @@ type Query {
   getUserNotifications(userID: String!): [Notification]
   getAllUnverifiedEmails:[Verify]
   getUnverifiedEmail(email: String!): Verify
+  getAllPlans: [Plan]
+  getPlan(planID: ID!): Plan
 }
 
 input CreateUserInput {
@@ -130,6 +148,28 @@ input CreateUserInput {
   city: String
   country: String
   type: String
+}
+
+input CreatePlanInput {
+  title: String!
+  amount: String!
+  return: String!
+  duration: String!
+  referalBonus: String!
+  description: [CreateDescriptionInput]
+}
+
+input CreateDescriptionInput {
+  point: String!
+}
+
+input UpdatePlanInput {
+  title: String
+  amount: String
+  return: String
+  duration: String
+  referalBonus: String
+  description: [CreateDescriptionInput]
 }
 
 type Mutation {
@@ -150,4 +190,7 @@ type Mutation {
   markNotificationAsSeen(id: String!): Notification!
   deleteAllUnverifiedEmails: [Verify]
   deleteUnverifiedEmail(email: String!): Verify
+  createPlan(input: CreatePlanInput!): Plan
+  updatePlan(planID: ID!, input: UpdatePlanInput!): Plan
+  deletePlan(planID: ID!): Boolean
 }

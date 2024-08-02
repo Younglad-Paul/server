@@ -20,18 +20,6 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-func HashPassword(password string) (string, error) {
-	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
-	return string(bytes), err
-}
-func getStringOrDefault(value *string, defaultValue string) string {
-	if value == nil {
-		return defaultValue
-	}
-	return *value
-}
-
-
 // Timestamp is the resolver for the timestamp field.
 func (r *balanceResolver) Timestamp(ctx context.Context, obj *model.Balance) (*string, error) {
 	if obj == nil || obj.Timestamp.IsZero() {
@@ -356,6 +344,96 @@ func (r *mutationResolver) DeleteAllUnverifiedEmails(ctx context.Context) ([]*mo
 // DeleteUnverifiedEmail is the resolver for the deleteUnverifiedEmail field.
 func (r *mutationResolver) DeleteUnverifiedEmail(ctx context.Context, email string) (*model.Verify, error) {
 	panic(fmt.Errorf("not implemented: DeleteUnverifiedEmail - deleteUnverifiedEmail"))
+}
+
+// CreatePlan is the resolver for the createPlan field.
+func (r *mutationResolver) CreatePlan(ctx context.Context, input model.CreatePlanInput) (*model.Plan, error) {
+	collection := r.MongoClient.Database(os.Getenv("DB_NAME")).Collection(os.Getenv("PLANS"))
+
+	newPlan := &model.Plan{
+		ID:           uuid.New().String(),
+		Title:        input.Title,
+		Amount:       input.Amount,
+		Return:       input.Return,
+		Duration:     input.Duration,
+		ReferalBonus: input.ReferalBonus,
+		Description:  []model.Description{},
+	}
+
+	for _, descInput := range input.Description {
+		newDescription := model.Description{
+			ID:    uuid.New().String(),
+			Point: descInput.Point,
+		}
+		newPlan.Description = append(newPlan.Description, newDescription)
+	}
+
+	_, err := collection.InsertOne(ctx, newPlan)
+	if err != nil {
+		return nil, fmt.Errorf("error creating plan: %v", err)
+	}
+
+	return newPlan, nil
+}
+
+// UpdatePlan is the resolver for the updatePlan field.
+func (r *mutationResolver) UpdatePlan(ctx context.Context, planID string, input model.UpdatePlanInput) (*model.Plan, error) {
+	collection := r.MongoClient.Database(os.Getenv("DB_NAME")).Collection(os.Getenv("PLANS"))
+
+	var existingPlan model.Plan
+	err := collection.FindOne(ctx, bson.M{"id": planID}).Decode(&existingPlan)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, fmt.Errorf("no plan found with id: %s", planID)
+		}
+		return nil, fmt.Errorf("error finding plan by id: %s", planID)
+	}
+
+	update := bson.M{}
+	if input.Title != nil {
+		update["title"] = *input.Title
+	}
+	if input.Amount != nil {
+		update["amount"] = *input.Amount
+	}
+	if input.Return != nil {
+		update["return"] = *input.Return
+	}
+	if input.Duration != nil {
+		update["duration"] = *input.Duration
+	}
+	if input.ReferalBonus != nil {
+		update["referalBonus"] = *input.ReferalBonus
+	}
+
+	if input.Description != nil {
+		var descriptions []model.Description
+		for _, descInput := range input.Description {
+			newDescription := model.Description{
+				ID:    uuid.New().String(), 
+				Point: descInput.Point,
+			}
+			descriptions = append(descriptions, newDescription)
+		}
+		update["description"] = descriptions
+	}
+
+	_, err = collection.UpdateOne(ctx, bson.M{"id": planID}, bson.M{"$set": update})
+	if err != nil {
+		return nil, fmt.Errorf("error updating plan: %v", err)
+	}
+
+	err = collection.FindOne(ctx, bson.M{"id": planID}).Decode(&existingPlan)
+	if err != nil {
+		return nil, fmt.Errorf("error finding updated plan by id: %v", err)
+	}
+
+	return &existingPlan, nil
+}
+
+// DeletePlan is the resolver for the deletePlan field.
+func (r *mutationResolver) DeletePlan(ctx context.Context, planID string) (*bool, error) {
+	panic(fmt.Errorf("not implemented: DeletePlan - deletePlan"))
 }
 
 // Timestamp is the resolver for the timestamp field.
@@ -804,6 +882,30 @@ func (r *queryResolver) GetUnverifiedEmail(ctx context.Context, email string) (*
 	return &user, nil
 }
 
+// GetAllPlans is the resolver for the getAllPlans field.
+func (r *queryResolver) GetAllPlans(ctx context.Context) ([]*model.Plan, error) {
+	collection := r.MongoClient.Database(os.Getenv("DB_NAME")).Collection(os.Getenv("PLANS"))
+
+	// Fetch all plans
+	cursor, err := collection.Find(ctx, bson.M{})
+	if err != nil {
+		return nil, fmt.Errorf("error fetching plans: %v", err)
+	}
+	defer cursor.Close(ctx)
+
+	var plans []*model.Plan
+	if err = cursor.All(ctx, &plans); err != nil {
+		return nil, fmt.Errorf("error decoding plans: %v", err)
+	}
+
+	return plans, nil
+}
+
+// GetPlan is the resolver for the getPlan field.
+func (r *queryResolver) GetPlan(ctx context.Context, planID string) (*model.Plan, error) {
+	panic(fmt.Errorf("not implemented: GetPlan - getPlan"))
+}
+
 // Timestamp is the resolver for the timestamp field.
 func (r *referenceResolver) Timestamp(ctx context.Context, obj *model.Reference) (*string, error) {
 	panic(fmt.Errorf("not implemented: Timestamp - timestamp"))
@@ -920,3 +1022,27 @@ type queryResolver struct{ *Resolver }
 type referenceResolver struct{ *Resolver }
 type userResolver struct{ *Resolver }
 type verifyResolver struct{ *Resolver }
+
+// !!! WARNING !!!
+// The code below was going to be deleted when updating resolvers. It has been copied here so you have
+// one last chance to move it out of harms way if you want. There are two reasons this happens:
+//   - When renaming or deleting a resolver the old code will be put in here. You can safely delete
+//     it when you're done.
+//   - You have helper methods in this file. Move them out to keep these resolver files clean.
+// func (r *descriptionResolver) Plan(ctx context.Context, obj *model.Description) (*model.Plan, error) {
+// 	panic(fmt.Errorf("not implemented: Plan - plan"))
+// }
+// func (r *Resolver) Description() DescriptionResolver { return &descriptionResolver{r} }
+
+type descriptionResolver struct{ *Resolver }
+
+func HashPassword(password string) (string, error) {
+	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
+	return string(bytes), err
+}
+func getStringOrDefault(value *string, defaultValue string) string {
+	if value == nil {
+		return defaultValue
+	}
+	return *value
+}

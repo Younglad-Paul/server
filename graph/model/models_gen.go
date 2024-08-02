@@ -2,6 +2,19 @@
 
 package model
 
+type CreateDescriptionInput struct {
+	Point string `json:"point"`
+}
+
+type CreatePlanInput struct {
+	Title        string                    `json:"title"`
+	Amount       string                    `json:"amount"`
+	Return       string                    `json:"return"`
+	Duration     string                    `json:"duration"`
+	ReferalBonus string                    `json:"referalBonus"`
+	Description  []*CreateDescriptionInput `json:"description,omitempty"`
+}
+
 type CreateUserInput struct {
 	UserImage *string `json:"userImage,omitempty"`
 	FirstName *string `json:"firstName,omitempty"`
@@ -18,4 +31,13 @@ type Mutation struct {
 }
 
 type Query struct {
+}
+
+type UpdatePlanInput struct {
+	Title        *string                   `json:"title,omitempty"`
+	Amount       *string                   `json:"amount,omitempty"`
+	Return       *string                   `json:"return,omitempty"`
+	Duration     *string                   `json:"duration,omitempty"`
+	ReferalBonus *string                   `json:"referalBonus,omitempty"`
+	Description  []*CreateDescriptionInput `json:"description,omitempty"`
 }
