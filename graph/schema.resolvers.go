@@ -433,8 +433,24 @@ func (r *mutationResolver) UpdatePlan(ctx context.Context, planID string, input 
 
 // DeletePlan is the resolver for the deletePlan field.
 func (r *mutationResolver) DeletePlan(ctx context.Context, planID string) (*bool, error) {
-	panic(fmt.Errorf("not implemented: DeletePlan - deletePlan"))
+	collection := r.MongoClient.Database(os.Getenv("DB_NAME")).Collection(os.Getenv("PLANS"))
+
+	// Attempt to delete the plan with the given ID
+	deleteResult, err := collection.DeleteOne(ctx, bson.M{"id": planID})
+	if err != nil {
+		return nil, fmt.Errorf("error deleting plan: %v", err)
+	}
+
+	// Check if a plan was deleted
+	if deleteResult.DeletedCount == 0 {
+		return nil, fmt.Errorf("no plan found with the ID: %s", planID)
+	}
+
+	// Return success
+	success := true
+	return &success, nil
 }
+
 
 // Timestamp is the resolver for the timestamp field.
 func (r *notificationResolver) Timestamp(ctx context.Context, obj *model.Notification) (*string, error) {
