@@ -55,6 +55,11 @@ type Referral {
   link: String
 }
 
+type Memo {
+  userID: ID!
+  memo: String
+}
+
 type Asset {
   id: ID!
   userID: ID!
@@ -121,6 +126,8 @@ type Query {
   getReference(userID: ID!): Reference
   getAllReferral: [Referral]
   getReferral(userID: ID): Referral
+  getAllMemos: [Memo]
+  getMemo(userID: ID!): Memo
   getAllAssets: [Asset]
   getAsset(assetID: ID!): Asset
   getUserAssets(userID: ID!): [Asset]
@@ -182,6 +189,8 @@ type Mutation {
   deleteInvestment(id: ID!): Boolean
   deleteCredit(id: ID!): Boolean
   deleteReference(id: ID!): Boolean
+  deleteAllMemos: Boolean
+  deleteMemo(userID: ID!): Boolean
   deleteAllHistory: Boolean
   deleteHistory(id: ID!): Boolean
   deleteAllTransactions: Boolean

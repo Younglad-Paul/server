@@ -20,6 +20,20 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+type descriptionResolver struct{ *Resolver }
+
+func HashPassword(password string) (string, error) {
+	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
+	return string(bytes), err
+}
+func getStringOrDefault(value *string, defaultValue string) string {
+	if value == nil {
+		return defaultValue
+	}
+	return *value
+}
+
+
 // Timestamp is the resolver for the timestamp field.
 func (r *balanceResolver) Timestamp(ctx context.Context, obj *model.Balance) (*string, error) {
 	if obj == nil || obj.Timestamp.IsZero() {
@@ -95,6 +109,12 @@ func (r *mutationResolver) CreateUser(ctx context.Context, input model.CreateUse
 	_, err = collection.InsertOne(ctx, user)
 	if err != nil {
 		return nil, fmt.Errorf("error creating user: %v", err)
+	}
+	//Create Memo
+	userMemo := r.MongoClient.Database(os.Getenv("DB_NAME")).Collection(os.Getenv("MEMO"))
+	err = utils.CreateMemo(ctx, userMemo, user.UserID)
+	if err != nil {
+		return nil, fmt.Errorf("error generating memo: %v", err)
 	}
 	// Create a Balance record
 	BalanceInit := r.MongoClient.Database(os.Getenv("DB_NAME")).Collection(os.Getenv("BALANCES"))
@@ -278,6 +298,16 @@ func (r *mutationResolver) DeleteReference(ctx context.Context, id string) (*boo
 	panic(fmt.Errorf("not implemented: DeleteReference - deleteReference"))
 }
 
+// DeleteAllMemos is the resolver for the deleteAllMemos field.
+func (r *mutationResolver) DeleteAllMemos(ctx context.Context) (*bool, error) {
+	panic(fmt.Errorf("not implemented: DeleteAllMemos - deleteAllMemos"))
+}
+
+// DeleteMemo is the resolver for the deleteMemo field.
+func (r *mutationResolver) DeleteMemo(ctx context.Context, userID string) (*bool, error) {
+	panic(fmt.Errorf("not implemented: DeleteMemo - deleteMemo"))
+}
+
 // DeleteAllHistory is the resolver for the deleteAllHistory field.
 func (r *mutationResolver) DeleteAllHistory(ctx context.Context) (*bool, error) {
 	panic(fmt.Errorf("not implemented: DeleteAllHistory - deleteAllHistory"))
@@ -410,7 +440,7 @@ func (r *mutationResolver) UpdatePlan(ctx context.Context, planID string, input 
 		var descriptions []model.Description
 		for _, descInput := range input.Description {
 			newDescription := model.Description{
-				ID:    uuid.New().String(), 
+				ID:    uuid.New().String(),
 				Point: descInput.Point,
 			}
 			descriptions = append(descriptions, newDescription)
@@ -450,7 +480,6 @@ func (r *mutationResolver) DeletePlan(ctx context.Context, planID string) (*bool
 	success := true
 	return &success, nil
 }
-
 
 // Timestamp is the resolver for the timestamp field.
 func (r *notificationResolver) Timestamp(ctx context.Context, obj *model.Notification) (*string, error) {
@@ -706,6 +735,41 @@ func (r *queryResolver) GetReferral(ctx context.Context, userID *string) (*model
 	}
 
 	return &referral, nil
+}
+
+// GetAllMemos is the resolver for the getAllMemos field.
+func (r *queryResolver) GetAllMemos(ctx context.Context) ([]*model.Memo, error) {
+	collection := r.MongoClient.Database(os.Getenv("DB_NAME")).Collection(os.Getenv("MEMO"))
+
+	cursor, err := collection.Find(ctx, bson.M{})
+	if err != nil {
+		return nil, fmt.Errorf("error fetching memo: %v", err)
+	}
+	defer cursor.Close(ctx)
+
+	var memo []*model.Memo
+	if err = cursor.All(ctx, bson.M{}); err != nil {
+		return nil, fmt.Errorf("error decoding memo: %v", err)
+	}
+
+	return memo, nil
+}
+
+// GetMemo is the resolver for the getMemo field.
+func (r *queryResolver) GetMemo(ctx context.Context, userID string) (*model.Memo, error) {
+	collection := r.MongoClient.Database(os.Getenv("DB_NAME")).Collection(os.Getenv("MEMO"))
+
+	var memo model.Memo
+	filter := bson.M{"userid": userID}
+
+	err := collection.FindOne(ctx, filter).Decode(&memo)
+	if err == mongo.ErrNoDocuments {
+		return nil, fmt.Errorf("no memo found for user %v", userID)
+	} else if err != nil {
+		return nil, fmt.Errorf("error finding memo with user: %v", err)
+	}
+
+	return &memo, nil
 }
 
 // GetAllAssets is the resolver for the getAllAssets field.
@@ -1038,27 +1102,3 @@ type queryResolver struct{ *Resolver }
 type referenceResolver struct{ *Resolver }
 type userResolver struct{ *Resolver }
 type verifyResolver struct{ *Resolver }
-
-// !!! WARNING !!!
-// The code below was going to be deleted when updating resolvers. It has been copied here so you have
-// one last chance to move it out of harms way if you want. There are two reasons this happens:
-//   - When renaming or deleting a resolver the old code will be put in here. You can safely delete
-//     it when you're done.
-//   - You have helper methods in this file. Move them out to keep these resolver files clean.
-// func (r *descriptionResolver) Plan(ctx context.Context, obj *model.Description) (*model.Plan, error) {
-// 	panic(fmt.Errorf("not implemented: Plan - plan"))
-// }
-// func (r *Resolver) Description() DescriptionResolver { return &descriptionResolver{r} }
-
-type descriptionResolver struct{ *Resolver }
-
-func HashPassword(password string) (string, error) {
-	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
-	return string(bytes), err
-}
-func getStringOrDefault(value *string, defaultValue string) string {
-	if value == nil {
-		return defaultValue
-	}
-	return *value
-}

@@ -97,11 +97,17 @@ type ComplexityRoot struct {
 		UserID    func(childComplexity int) int
 	}
 
+	Memo struct {
+		Memo   func(childComplexity int) int
+		UserID func(childComplexity int) int
+	}
+
 	Mutation struct {
 		CreateNotification        func(childComplexity int, userID string, message string) int
 		CreatePlan                func(childComplexity int, input model.CreatePlanInput) int
 		CreateUser                func(childComplexity int, input model.CreateUserInput) int
 		DeleteAllHistory          func(childComplexity int) int
+		DeleteAllMemos            func(childComplexity int) int
 		DeleteAllTransactions     func(childComplexity int) int
 		DeleteAllUnverifiedEmails func(childComplexity int) int
 		DeleteAllUsers            func(childComplexity int) int
@@ -109,6 +115,7 @@ type ComplexityRoot struct {
 		DeleteCredit              func(childComplexity int, id string) int
 		DeleteHistory             func(childComplexity int, id string) int
 		DeleteInvestment          func(childComplexity int, id string) int
+		DeleteMemo                func(childComplexity int, userID string) int
 		DeletePlan                func(childComplexity int, planID string) int
 		DeleteReference           func(childComplexity int, id string) int
 		DeleteTransaction         func(childComplexity int, id string) int
@@ -144,6 +151,7 @@ type ComplexityRoot struct {
 		GetAllCredits          func(childComplexity int) int
 		GetAllHistory          func(childComplexity int) int
 		GetAllInvestments      func(childComplexity int) int
+		GetAllMemos            func(childComplexity int) int
 		GetAllNotification     func(childComplexity int) int
 		GetAllPlans            func(childComplexity int) int
 		GetAllReferences       func(childComplexity int) int
@@ -156,6 +164,7 @@ type ComplexityRoot struct {
 		GetCredit              func(childComplexity int, userID string) int
 		GetHistory             func(childComplexity int, id string) int
 		GetInvestment          func(childComplexity int, userID string) int
+		GetMemo                func(childComplexity int, userID string) int
 		GetPlan                func(childComplexity int, planID string) int
 		GetReference           func(childComplexity int, userID string) int
 		GetReferral            func(childComplexity int, userID *string) int
@@ -239,6 +248,8 @@ type MutationResolver interface {
 	DeleteInvestment(ctx context.Context, id string) (*bool, error)
 	DeleteCredit(ctx context.Context, id string) (*bool, error)
 	DeleteReference(ctx context.Context, id string) (*bool, error)
+	DeleteAllMemos(ctx context.Context) (*bool, error)
+	DeleteMemo(ctx context.Context, userID string) (*bool, error)
 	DeleteAllHistory(ctx context.Context) (*bool, error)
 	DeleteHistory(ctx context.Context, id string) (*bool, error)
 	DeleteAllTransactions(ctx context.Context) (*bool, error)
@@ -267,6 +278,8 @@ type QueryResolver interface {
 	GetReference(ctx context.Context, userID string) (*model.Reference, error)
 	GetAllReferral(ctx context.Context) ([]*model.Referral, error)
 	GetReferral(ctx context.Context, userID *string) (*model.Referral, error)
+	GetAllMemos(ctx context.Context) ([]*model.Memo, error)
+	GetMemo(ctx context.Context, userID string) (*model.Memo, error)
 	GetAllAssets(ctx context.Context) ([]*model.Asset, error)
 	GetAsset(ctx context.Context, assetID string) (*model.Asset, error)
 	GetUserAssets(ctx context.Context, userID string) ([]*model.Asset, error)
@@ -489,6 +502,20 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Investment.UserID(childComplexity), true
 
+	case "Memo.memo":
+		if e.complexity.Memo.Memo == nil {
+			break
+		}
+
+		return e.complexity.Memo.Memo(childComplexity), true
+
+	case "Memo.userID":
+		if e.complexity.Memo.UserID == nil {
+			break
+		}
+
+		return e.complexity.Memo.UserID(childComplexity), true
+
 	case "Mutation.createNotification":
 		if e.complexity.Mutation.CreateNotification == nil {
 			break
@@ -531,6 +558,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Mutation.DeleteAllHistory(childComplexity), true
+
+	case "Mutation.deleteAllMemos":
+		if e.complexity.Mutation.DeleteAllMemos == nil {
+			break
+		}
+
+		return e.complexity.Mutation.DeleteAllMemos(childComplexity), true
 
 	case "Mutation.deleteAllTransactions":
 		if e.complexity.Mutation.DeleteAllTransactions == nil {
@@ -600,6 +634,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Mutation.DeleteInvestment(childComplexity, args["id"].(string)), true
+
+	case "Mutation.deleteMemo":
+		if e.complexity.Mutation.DeleteMemo == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_deleteMemo_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.DeleteMemo(childComplexity, args["userID"].(string)), true
 
 	case "Mutation.deletePlan":
 		if e.complexity.Mutation.DeletePlan == nil {
@@ -828,6 +874,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Query.GetAllInvestments(childComplexity), true
 
+	case "Query.getAllMemos":
+		if e.complexity.Query.GetAllMemos == nil {
+			break
+		}
+
+		return e.complexity.Query.GetAllMemos(childComplexity), true
+
 	case "Query.getAllNotification":
 		if e.complexity.Query.GetAllNotification == nil {
 			break
@@ -936,6 +989,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Query.GetInvestment(childComplexity, args["userID"].(string)), true
+
+	case "Query.getMemo":
+		if e.complexity.Query.GetMemo == nil {
+			break
+		}
+
+		args, err := ec.field_Query_getMemo_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.GetMemo(childComplexity, args["userID"].(string)), true
 
 	case "Query.getPlan":
 		if e.complexity.Query.GetPlan == nil {
@@ -1530,6 +1595,21 @@ func (ec *executionContext) field_Mutation_deleteInvestment_args(ctx context.Con
 	return args, nil
 }
 
+func (ec *executionContext) field_Mutation_deleteMemo_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 string
+	if tmp, ok := rawArgs["userID"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("userID"))
+		arg0, err = ec.unmarshalNID2string(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["userID"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_Mutation_deletePlan_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
@@ -1768,6 +1848,21 @@ func (ec *executionContext) field_Query_getHistory_args(ctx context.Context, raw
 }
 
 func (ec *executionContext) field_Query_getInvestment_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 string
+	if tmp, ok := rawArgs["userID"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("userID"))
+		arg0, err = ec.unmarshalNID2string(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["userID"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_getMemo_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
 	var arg0 string
@@ -2987,6 +3082,91 @@ func (ec *executionContext) fieldContext_Investment_timestamp(_ context.Context,
 	return fc, nil
 }
 
+func (ec *executionContext) _Memo_userID(ctx context.Context, field graphql.CollectedField, obj *model.Memo) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Memo_userID(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.UserID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNID2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Memo_userID(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Memo",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Memo_memo(ctx context.Context, field graphql.CollectedField, obj *model.Memo) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Memo_memo(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Memo, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalOString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Memo_memo(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Memo",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Mutation_createUser(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Mutation_createUser(ctx, field)
 	if err != nil {
@@ -3521,6 +3701,99 @@ func (ec *executionContext) fieldContext_Mutation_deleteReference(ctx context.Co
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_deleteReference_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_deleteAllMemos(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_deleteAllMemos(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().DeleteAllMemos(rctx)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*bool)
+	fc.Result = res
+	return ec.marshalOBoolean2ᚖbool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_deleteAllMemos(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_deleteMemo(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_deleteMemo(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().DeleteMemo(rctx, fc.Args["userID"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*bool)
+	fc.Result = res
+	return ec.marshalOBoolean2ᚖbool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_deleteMemo(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_deleteMemo_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -5385,6 +5658,111 @@ func (ec *executionContext) fieldContext_Query_getReferral(ctx context.Context, 
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Query_getReferral_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_getAllMemos(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_getAllMemos(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().GetAllMemos(rctx)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.([]*model.Memo)
+	fc.Result = res
+	return ec.marshalOMemo2ᚕᚖbackendᚋgraphᚋmodelᚐMemo(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_getAllMemos(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "userID":
+				return ec.fieldContext_Memo_userID(ctx, field)
+			case "memo":
+				return ec.fieldContext_Memo_memo(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Memo", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_getMemo(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_getMemo(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().GetMemo(rctx, fc.Args["userID"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*model.Memo)
+	fc.Result = res
+	return ec.marshalOMemo2ᚖbackendᚋgraphᚋmodelᚐMemo(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_getMemo(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "userID":
+				return ec.fieldContext_Memo_userID(ctx, field)
+			case "memo":
+				return ec.fieldContext_Memo_memo(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Memo", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_getMemo_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -10304,6 +10682,47 @@ func (ec *executionContext) _Investment(ctx context.Context, sel ast.SelectionSe
 	return out
 }
 
+var memoImplementors = []string{"Memo"}
+
+func (ec *executionContext) _Memo(ctx context.Context, sel ast.SelectionSet, obj *model.Memo) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, memoImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("Memo")
+		case "userID":
+			out.Values[i] = ec._Memo_userID(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "memo":
+			out.Values[i] = ec._Memo_memo(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var mutationImplementors = []string{"Mutation"}
 
 func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet) graphql.Marshaler {
@@ -10361,6 +10780,14 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "deleteReference":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_deleteReference(ctx, field)
+			})
+		case "deleteAllMemos":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_deleteAllMemos(ctx, field)
+			})
+		case "deleteMemo":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_deleteMemo(ctx, field)
 			})
 		case "deleteAllHistory":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
@@ -10811,6 +11238,44 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_getReferral(ctx, field)
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "getAllMemos":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_getAllMemos(ctx, field)
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "getMemo":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_getMemo(ctx, field)
 				return res
 			}
 
@@ -12778,6 +13243,54 @@ func (ec *executionContext) marshalOInvestment2ᚖbackendᚋgraphᚋmodelᚐInve
 		return graphql.Null
 	}
 	return ec._Investment(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalOMemo2ᚕᚖbackendᚋgraphᚋmodelᚐMemo(ctx context.Context, sel ast.SelectionSet, v []*model.Memo) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalOMemo2ᚖbackendᚋgraphᚋmodelᚐMemo(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	return ret
+}
+
+func (ec *executionContext) marshalOMemo2ᚖbackendᚋgraphᚋmodelᚐMemo(ctx context.Context, sel ast.SelectionSet, v *model.Memo) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._Memo(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalONotification2ᚕᚖbackendᚋgraphᚋmodelᚐNotification(ctx context.Context, sel ast.SelectionSet, v []*model.Notification) graphql.Marshaler {
