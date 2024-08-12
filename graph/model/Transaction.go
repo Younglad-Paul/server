@@ -1,8 +1,8 @@
 package model
 
 type Transaction struct {
-	ID     string
-	UserID string
-	Detail string
+	id     string
+	From   string
+	To     string
 	Amount float64
 }

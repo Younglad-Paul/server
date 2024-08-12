@@ -20,20 +20,6 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-type descriptionResolver struct{ *Resolver }
-
-func HashPassword(password string) (string, error) {
-	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
-	return string(bytes), err
-}
-func getStringOrDefault(value *string, defaultValue string) string {
-	if value == nil {
-		return defaultValue
-	}
-	return *value
-}
-
-
 // Timestamp is the resolver for the timestamp field.
 func (r *balanceResolver) Timestamp(ctx context.Context, obj *model.Balance) (*string, error) {
 	if obj == nil || obj.Timestamp.IsZero() {
@@ -316,6 +302,26 @@ func (r *mutationResolver) DeleteAllHistory(ctx context.Context) (*bool, error) 
 // DeleteHistory is the resolver for the deleteHistory field.
 func (r *mutationResolver) DeleteHistory(ctx context.Context, id string) (*bool, error) {
 	panic(fmt.Errorf("not implemented: DeleteHistory - deleteHistory"))
+}
+
+// MakeTransaction is the resolver for the makeTransaction field.
+func (r *mutationResolver) MakeTransaction(ctx context.Context, input model.MakeTransfer) (*model.Transaction, error) {
+	collection := r.MongoClient.Database(os.Getenv("DB_NAME")).Collection(os.Getenv("TRANSACT"))
+
+	transaction := &model.Transaction{
+		From:   *input.From,
+		To:     *input.To,
+		Amount: *input.Amount,
+	}
+
+	// Declare err with :=
+	result, err := collection.InsertOne(ctx, transaction)
+	fmt.Println("Inserted ID:", result.InsertedID)
+	if err != nil {
+		return nil, fmt.Errorf("error making transaction: %v", err)
+	}
+
+	return transaction, nil
 }
 
 // DeleteAllTransactions is the resolver for the deleteAllTransactions field.
@@ -859,7 +865,28 @@ func (r *queryResolver) GetUserHistory(ctx context.Context, userID string) ([]*m
 
 // GetAllTransactions is the resolver for the getAllTransactions field.
 func (r *queryResolver) GetAllTransactions(ctx context.Context) ([]*model.Transaction, error) {
-	panic(fmt.Errorf("not implemented: GetAllTransactions - getAllTransactions"))
+	collection := r.MongoClient.Database(os.Getenv("DB_NAME")).Collection(os.Getenv("TRANSACT"))
+
+    cursor, err := collection.Find(ctx, bson.M{})
+    if err!= nil {
+        return nil, fmt.Errorf("error fetching transactions: %v", err)
+    }
+    defer cursor.Close(ctx)
+
+    var transactions []*model.Transaction
+    for cursor.Next(ctx) {
+        var transaction model.Transaction
+        if err := cursor.Decode(&transaction); err!= nil {
+            return nil, fmt.Errorf("error decoding transaction: %v", err)
+        }
+        transactions = append(transactions, &transaction)
+    }
+
+    if err := cursor.Err(); err!= nil {
+        return nil, fmt.Errorf("cursor error: %v", err)
+    }
+
+    return transactions, nil
 }
 
 // GetTransaction is the resolver for the getTransaction field.
@@ -867,9 +894,88 @@ func (r *queryResolver) GetTransaction(ctx context.Context, id string) (*model.T
 	panic(fmt.Errorf("not implemented: GetTransaction - getTransaction"))
 }
 
-// GetUserTransactions is the resolver for the getUserTransactions field.
-func (r *queryResolver) GetUserTransactions(ctx context.Context, userID string) ([]*model.Transaction, error) {
-	panic(fmt.Errorf("not implemented: GetUserTransactions - getUserTransactions"))
+// GetAllUserTransaction is the resolver for the getAllUserTransaction field.
+func (r *queryResolver) GetAllUserTransaction(ctx context.Context, id string) ([]*model.Transaction, error) {
+	collection := r.MongoClient.Database(os.Getenv("DB_NAME")).Collection(os.Getenv("TRANSACT"))
+
+	filter := bson.M{"id": id}
+	cursor, err := collection.Find(ctx, filter)
+	if err != nil {
+		return nil, fmt.Errorf("error fetching transactions: %v", err)
+	}
+	defer cursor.Close(ctx)
+
+	var transactions []*model.Transaction
+
+	for cursor.Next(ctx) {
+		var transaction model.Transaction
+		if err := cursor.Decode(&transaction); err != nil {
+			return nil, fmt.Errorf("error decoding transaction: %v", err)
+		}
+		transactions = append(transactions, &transaction)
+	}
+
+	if err := cursor.Err(); err != nil {
+		return nil, fmt.Errorf("cursor error: %v", err)
+	}
+
+	return transactions, nil
+}
+
+// GetUserCreditTransactions is the resolver for the getUserCreditTransactions field.
+func (r *queryResolver) GetUserCreditTransactions(ctx context.Context, to string) ([]*model.Transaction, error) {
+	collection := r.MongoClient.Database(os.Getenv("DB_NAME")).Collection(os.Getenv("TRANSACT"))
+
+	filter := bson.M{"to": to}
+	cursor, err := collection.Find(ctx, filter)
+	if err != nil {
+		return nil, fmt.Errorf("error fetching transactions: %v", err)
+	}
+	defer cursor.Close(ctx)
+
+	var transactions []*model.Transaction
+
+	for cursor.Next(ctx) {
+		var transaction model.Transaction
+		if err := cursor.Decode(&transaction); err != nil {
+			return nil, fmt.Errorf("error decoding transaction: %v", err)
+		}
+		transactions = append(transactions, &transaction)
+	}
+
+	if err := cursor.Err(); err != nil {
+		return nil, fmt.Errorf("cursor error: %v", err)
+	}
+
+	return transactions, nil
+}
+
+// GetUserDebutTransactions is the resolver for the getUserDebutTransactions field.
+func (r *queryResolver) GetUserDebutTransactions(ctx context.Context, from string) ([]*model.Transaction, error) {
+	collection := r.MongoClient.Database(os.Getenv("DB_NAME")).Collection(os.Getenv("TRANSACT"))
+
+	filter := bson.M{"from": from}
+	cursor, err := collection.Find(ctx, filter)
+	if err != nil {
+		return nil, fmt.Errorf("error fetching transactions: %v", err)
+	}
+	defer cursor.Close(ctx)
+
+	var transactions []*model.Transaction
+
+	for cursor.Next(ctx) {
+		var transaction model.Transaction
+		if err := cursor.Decode(&transaction); err != nil {
+			return nil, fmt.Errorf("error decoding transaction: %v", err)
+		}
+		transactions = append(transactions, &transaction)
+	}
+
+	if err := cursor.Err(); err != nil {
+		return nil, fmt.Errorf("cursor error: %v", err)
+	}
+
+	return transactions, nil
 }
 
 // GetAllNotification is the resolver for the getAllNotification field.
@@ -992,6 +1098,11 @@ func (r *referenceResolver) Timestamp(ctx context.Context, obj *model.Reference)
 }
 
 // ID is the resolver for the id field.
+func (r *transactionResolver) ID(ctx context.Context, obj *model.Transaction) (string, error) {
+	panic(fmt.Errorf("not implemented: ID - id"))
+}
+
+// ID is the resolver for the id field.
 func (r *userResolver) ID(ctx context.Context, obj *model.User) (string, error) {
 	panic(fmt.Errorf("not implemented: ID - id"))
 }
@@ -1086,6 +1197,9 @@ func (r *Resolver) Query() QueryResolver { return &queryResolver{r} }
 // Reference returns ReferenceResolver implementation.
 func (r *Resolver) Reference() ReferenceResolver { return &referenceResolver{r} }
 
+// Transaction returns TransactionResolver implementation.
+func (r *Resolver) Transaction() TransactionResolver { return &transactionResolver{r} }
+
 // User returns UserResolver implementation.
 func (r *Resolver) User() UserResolver { return &userResolver{r} }
 
@@ -1100,5 +1214,28 @@ type mutationResolver struct{ *Resolver }
 type notificationResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }
 type referenceResolver struct{ *Resolver }
+type transactionResolver struct{ *Resolver }
 type userResolver struct{ *Resolver }
 type verifyResolver struct{ *Resolver }
+
+// !!! WARNING !!!
+// The code below was going to be deleted when updating resolvers. It has been copied here so you have
+// one last chance to move it out of harms way if you want. There are two reasons this happens:
+//   - When renaming or deleting a resolver the old code will be put in here. You can safely delete
+//     it when you're done.
+//   - You have helper methods in this file. Move them out to keep these resolver files clean.
+type descriptionResolver struct{ *Resolver }
+
+func HashPassword(password string) (string, error) {
+	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
+	return string(bytes), err
+}
+func getStringOrDefault(value *string, defaultValue string) string {
+	if value == nil {
+		return defaultValue
+	}
+	return *value
+}
+func (r *queryResolver) GetUserTransactions(ctx context.Context, userID string) ([]*model.Transaction, error) {
+	panic(fmt.Errorf("not implemented: GetUserTransactions - getUserTransactions"))
+}

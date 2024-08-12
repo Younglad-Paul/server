@@ -78,8 +78,8 @@ type History {
 
 type Transaction {
   id: ID!
-  userID: ID!
-  detail: String
+  from: String
+  to: String
   amount: Float
 }
 
@@ -136,7 +136,9 @@ type Query {
   getUserHistory(userID: ID!): [History]
   getAllTransactions: [Transaction]
   getTransaction(id: ID!): Transaction
-  getUserTransactions(userID: ID!): [Transaction]
+  getAllUserTransaction(id: ID!): [Transaction]
+  getUserCreditTransactions(to: String!): [Transaction]
+  getUserDebutTransactions(from: String!): [Transaction]
   getAllNotification: [Notification]
   getUserNotifications(userID: String!): [Notification]
   getAllUnverifiedEmails:[Verify]
@@ -155,6 +157,12 @@ input CreateUserInput {
   city: String
   country: String
   type: String
+}
+
+input MakeTransfer {
+  from: String
+  to: String
+  amount: Float
 }
 
 input CreatePlanInput {
@@ -193,6 +201,7 @@ type Mutation {
   deleteMemo(userID: ID!): Boolean
   deleteAllHistory: Boolean
   deleteHistory(id: ID!): Boolean
+  makeTransaction(input: MakeTransfer!): Transaction
   deleteAllTransactions: Boolean
   deleteTransaction(id: ID!): Boolean
   createNotification(userID: ID!, message: String!): Notification!

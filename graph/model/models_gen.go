@@ -27,6 +27,12 @@ type CreateUserInput struct {
 	Type      *string `json:"type,omitempty"`
 }
 
+type MakeTransfer struct {
+	From   *string  `json:"from,omitempty"`
+	To     *string  `json:"to,omitempty"`
+	Amount *float64 `json:"amount,omitempty"`
+}
+
 type Mutation struct {
 }
 

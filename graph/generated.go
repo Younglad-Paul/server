@@ -47,6 +47,7 @@ type ResolverRoot interface {
 	Notification() NotificationResolver
 	Query() QueryResolver
 	Reference() ReferenceResolver
+	Transaction() TransactionResolver
 	User() UserResolver
 	Verify() VerifyResolver
 }
@@ -123,6 +124,7 @@ type ComplexityRoot struct {
 		DeleteUser                func(childComplexity int, userID string) int
 		EditUser                  func(childComplexity int, userID string, input model.CreateUserInput) int
 		Login                     func(childComplexity int, email string, password string) int
+		MakeTransaction           func(childComplexity int, input model.MakeTransfer) int
 		MarkNotificationAsSeen    func(childComplexity int, id string) int
 		UpdatePlan                func(childComplexity int, planID string, input model.UpdatePlanInput) int
 	}
@@ -146,35 +148,37 @@ type ComplexityRoot struct {
 	}
 
 	Query struct {
-		GetAllAssets           func(childComplexity int) int
-		GetAllBalances         func(childComplexity int) int
-		GetAllCredits          func(childComplexity int) int
-		GetAllHistory          func(childComplexity int) int
-		GetAllInvestments      func(childComplexity int) int
-		GetAllMemos            func(childComplexity int) int
-		GetAllNotification     func(childComplexity int) int
-		GetAllPlans            func(childComplexity int) int
-		GetAllReferences       func(childComplexity int) int
-		GetAllReferral         func(childComplexity int) int
-		GetAllTransactions     func(childComplexity int) int
-		GetAllUnverifiedEmails func(childComplexity int) int
-		GetAllUsers            func(childComplexity int) int
-		GetAsset               func(childComplexity int, assetID string) int
-		GetBalance             func(childComplexity int, userID string) int
-		GetCredit              func(childComplexity int, userID string) int
-		GetHistory             func(childComplexity int, id string) int
-		GetInvestment          func(childComplexity int, userID string) int
-		GetMemo                func(childComplexity int, userID string) int
-		GetPlan                func(childComplexity int, planID string) int
-		GetReference           func(childComplexity int, userID string) int
-		GetReferral            func(childComplexity int, userID *string) int
-		GetTransaction         func(childComplexity int, id string) int
-		GetUnverifiedEmail     func(childComplexity int, email string) int
-		GetUser                func(childComplexity int, userID string) int
-		GetUserAssets          func(childComplexity int, userID string) int
-		GetUserHistory         func(childComplexity int, userID string) int
-		GetUserNotifications   func(childComplexity int, userID string) int
-		GetUserTransactions    func(childComplexity int, userID string) int
+		GetAllAssets              func(childComplexity int) int
+		GetAllBalances            func(childComplexity int) int
+		GetAllCredits             func(childComplexity int) int
+		GetAllHistory             func(childComplexity int) int
+		GetAllInvestments         func(childComplexity int) int
+		GetAllMemos               func(childComplexity int) int
+		GetAllNotification        func(childComplexity int) int
+		GetAllPlans               func(childComplexity int) int
+		GetAllReferences          func(childComplexity int) int
+		GetAllReferral            func(childComplexity int) int
+		GetAllTransactions        func(childComplexity int) int
+		GetAllUnverifiedEmails    func(childComplexity int) int
+		GetAllUserTransaction     func(childComplexity int, id string) int
+		GetAllUsers               func(childComplexity int) int
+		GetAsset                  func(childComplexity int, assetID string) int
+		GetBalance                func(childComplexity int, userID string) int
+		GetCredit                 func(childComplexity int, userID string) int
+		GetHistory                func(childComplexity int, id string) int
+		GetInvestment             func(childComplexity int, userID string) int
+		GetMemo                   func(childComplexity int, userID string) int
+		GetPlan                   func(childComplexity int, planID string) int
+		GetReference              func(childComplexity int, userID string) int
+		GetReferral               func(childComplexity int, userID *string) int
+		GetTransaction            func(childComplexity int, id string) int
+		GetUnverifiedEmail        func(childComplexity int, email string) int
+		GetUser                   func(childComplexity int, userID string) int
+		GetUserAssets             func(childComplexity int, userID string) int
+		GetUserCreditTransactions func(childComplexity int, to string) int
+		GetUserDebutTransactions  func(childComplexity int, from string) int
+		GetUserHistory            func(childComplexity int, userID string) int
+		GetUserNotifications      func(childComplexity int, userID string) int
 	}
 
 	Reference struct {
@@ -192,9 +196,9 @@ type ComplexityRoot struct {
 
 	Transaction struct {
 		Amount func(childComplexity int) int
-		Detail func(childComplexity int) int
+		From   func(childComplexity int) int
 		ID     func(childComplexity int) int
-		UserID func(childComplexity int) int
+		To     func(childComplexity int) int
 	}
 
 	User struct {
@@ -252,6 +256,7 @@ type MutationResolver interface {
 	DeleteMemo(ctx context.Context, userID string) (*bool, error)
 	DeleteAllHistory(ctx context.Context) (*bool, error)
 	DeleteHistory(ctx context.Context, id string) (*bool, error)
+	MakeTransaction(ctx context.Context, input model.MakeTransfer) (*model.Transaction, error)
 	DeleteAllTransactions(ctx context.Context) (*bool, error)
 	DeleteTransaction(ctx context.Context, id string) (*bool, error)
 	CreateNotification(ctx context.Context, userID string, message string) (*model.Notification, error)
@@ -288,7 +293,9 @@ type QueryResolver interface {
 	GetUserHistory(ctx context.Context, userID string) ([]*model.History, error)
 	GetAllTransactions(ctx context.Context) ([]*model.Transaction, error)
 	GetTransaction(ctx context.Context, id string) (*model.Transaction, error)
-	GetUserTransactions(ctx context.Context, userID string) ([]*model.Transaction, error)
+	GetAllUserTransaction(ctx context.Context, id string) ([]*model.Transaction, error)
+	GetUserCreditTransactions(ctx context.Context, to string) ([]*model.Transaction, error)
+	GetUserDebutTransactions(ctx context.Context, from string) ([]*model.Transaction, error)
 	GetAllNotification(ctx context.Context) ([]*model.Notification, error)
 	GetUserNotifications(ctx context.Context, userID string) ([]*model.Notification, error)
 	GetAllUnverifiedEmails(ctx context.Context) ([]*model.Verify, error)
@@ -298,6 +305,9 @@ type QueryResolver interface {
 }
 type ReferenceResolver interface {
 	Timestamp(ctx context.Context, obj *model.Reference) (*string, error)
+}
+type TransactionResolver interface {
+	ID(ctx context.Context, obj *model.Transaction) (string, error)
 }
 type UserResolver interface {
 	ID(ctx context.Context, obj *model.User) (string, error)
@@ -731,6 +741,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Mutation.Login(childComplexity, args["email"].(string), args["password"].(string)), true
 
+	case "Mutation.makeTransaction":
+		if e.complexity.Mutation.MakeTransaction == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_makeTransaction_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.MakeTransaction(childComplexity, args["input"].(model.MakeTransfer)), true
+
 	case "Mutation.markNotificationAsSeen":
 		if e.complexity.Mutation.MarkNotificationAsSeen == nil {
 			break
@@ -923,6 +945,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Query.GetAllUnverifiedEmails(childComplexity), true
 
+	case "Query.getAllUserTransaction":
+		if e.complexity.Query.GetAllUserTransaction == nil {
+			break
+		}
+
+		args, err := ec.field_Query_getAllUserTransaction_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.GetAllUserTransaction(childComplexity, args["id"].(string)), true
+
 	case "Query.getAllUsers":
 		if e.complexity.Query.GetAllUsers == nil {
 			break
@@ -1086,6 +1120,30 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Query.GetUserAssets(childComplexity, args["userID"].(string)), true
 
+	case "Query.getUserCreditTransactions":
+		if e.complexity.Query.GetUserCreditTransactions == nil {
+			break
+		}
+
+		args, err := ec.field_Query_getUserCreditTransactions_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.GetUserCreditTransactions(childComplexity, args["to"].(string)), true
+
+	case "Query.getUserDebutTransactions":
+		if e.complexity.Query.GetUserDebutTransactions == nil {
+			break
+		}
+
+		args, err := ec.field_Query_getUserDebutTransactions_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.GetUserDebutTransactions(childComplexity, args["from"].(string)), true
+
 	case "Query.getUserHistory":
 		if e.complexity.Query.GetUserHistory == nil {
 			break
@@ -1109,18 +1167,6 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Query.GetUserNotifications(childComplexity, args["userID"].(string)), true
-
-	case "Query.getUserTransactions":
-		if e.complexity.Query.GetUserTransactions == nil {
-			break
-		}
-
-		args, err := ec.field_Query_getUserTransactions_args(context.TODO(), rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.Query.GetUserTransactions(childComplexity, args["userID"].(string)), true
 
 	case "Reference.amount":
 		if e.complexity.Reference.Amount == nil {
@@ -1178,12 +1224,12 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Transaction.Amount(childComplexity), true
 
-	case "Transaction.detail":
-		if e.complexity.Transaction.Detail == nil {
+	case "Transaction.from":
+		if e.complexity.Transaction.From == nil {
 			break
 		}
 
-		return e.complexity.Transaction.Detail(childComplexity), true
+		return e.complexity.Transaction.From(childComplexity), true
 
 	case "Transaction.id":
 		if e.complexity.Transaction.ID == nil {
@@ -1192,12 +1238,12 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Transaction.ID(childComplexity), true
 
-	case "Transaction.userID":
-		if e.complexity.Transaction.UserID == nil {
+	case "Transaction.to":
+		if e.complexity.Transaction.To == nil {
 			break
 		}
 
-		return e.complexity.Transaction.UserID(childComplexity), true
+		return e.complexity.Transaction.To(childComplexity), true
 
 	case "User.assets":
 		if e.complexity.User.Assets == nil {
@@ -1364,6 +1410,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputCreateDescriptionInput,
 		ec.unmarshalInputCreatePlanInput,
 		ec.unmarshalInputCreateUserInput,
+		ec.unmarshalInputMakeTransfer,
 		ec.unmarshalInputUpdatePlanInput,
 	)
 	first := true
@@ -1733,6 +1780,21 @@ func (ec *executionContext) field_Mutation_login_args(ctx context.Context, rawAr
 	return args, nil
 }
 
+func (ec *executionContext) field_Mutation_makeTransaction_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 model.MakeTransfer
+	if tmp, ok := rawArgs["input"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
+		arg0, err = ec.unmarshalNMakeTransfer2backendᚋgraphᚋmodelᚐMakeTransfer(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_Mutation_markNotificationAsSeen_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
@@ -1784,6 +1846,21 @@ func (ec *executionContext) field_Query___type_args(ctx context.Context, rawArgs
 		}
 	}
 	args["name"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_getAllUserTransaction_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 string
+	if tmp, ok := rawArgs["id"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
+		arg0, err = ec.unmarshalNID2string(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["id"] = arg0
 	return args, nil
 }
 
@@ -1967,6 +2044,36 @@ func (ec *executionContext) field_Query_getUserAssets_args(ctx context.Context, 
 	return args, nil
 }
 
+func (ec *executionContext) field_Query_getUserCreditTransactions_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 string
+	if tmp, ok := rawArgs["to"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("to"))
+		arg0, err = ec.unmarshalNString2string(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["to"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_getUserDebutTransactions_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 string
+	if tmp, ok := rawArgs["from"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("from"))
+		arg0, err = ec.unmarshalNString2string(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["from"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_Query_getUserHistory_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
@@ -1989,21 +2096,6 @@ func (ec *executionContext) field_Query_getUserNotifications_args(ctx context.Co
 	if tmp, ok := rawArgs["userID"]; ok {
 		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("userID"))
 		arg0, err = ec.unmarshalNString2string(ctx, tmp)
-		if err != nil {
-			return nil, err
-		}
-	}
-	args["userID"] = arg0
-	return args, nil
-}
-
-func (ec *executionContext) field_Query_getUserTransactions_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
-	var err error
-	args := map[string]interface{}{}
-	var arg0 string
-	if tmp, ok := rawArgs["userID"]; ok {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("userID"))
-		arg0, err = ec.unmarshalNID2string(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
@@ -3887,6 +3979,68 @@ func (ec *executionContext) fieldContext_Mutation_deleteHistory(ctx context.Cont
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_deleteHistory_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_makeTransaction(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_makeTransaction(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().MakeTransaction(rctx, fc.Args["input"].(model.MakeTransfer))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*model.Transaction)
+	fc.Result = res
+	return ec.marshalOTransaction2ᚖbackendᚋgraphᚋmodelᚐTransaction(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_makeTransaction(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Transaction_id(ctx, field)
+			case "from":
+				return ec.fieldContext_Transaction_from(ctx, field)
+			case "to":
+				return ec.fieldContext_Transaction_to(ctx, field)
+			case "amount":
+				return ec.fieldContext_Transaction_amount(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Transaction", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_makeTransaction_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -6169,10 +6323,10 @@ func (ec *executionContext) fieldContext_Query_getAllTransactions(_ context.Cont
 			switch field.Name {
 			case "id":
 				return ec.fieldContext_Transaction_id(ctx, field)
-			case "userID":
-				return ec.fieldContext_Transaction_userID(ctx, field)
-			case "detail":
-				return ec.fieldContext_Transaction_detail(ctx, field)
+			case "from":
+				return ec.fieldContext_Transaction_from(ctx, field)
+			case "to":
+				return ec.fieldContext_Transaction_to(ctx, field)
 			case "amount":
 				return ec.fieldContext_Transaction_amount(ctx, field)
 			}
@@ -6220,10 +6374,10 @@ func (ec *executionContext) fieldContext_Query_getTransaction(ctx context.Contex
 			switch field.Name {
 			case "id":
 				return ec.fieldContext_Transaction_id(ctx, field)
-			case "userID":
-				return ec.fieldContext_Transaction_userID(ctx, field)
-			case "detail":
-				return ec.fieldContext_Transaction_detail(ctx, field)
+			case "from":
+				return ec.fieldContext_Transaction_from(ctx, field)
+			case "to":
+				return ec.fieldContext_Transaction_to(ctx, field)
 			case "amount":
 				return ec.fieldContext_Transaction_amount(ctx, field)
 			}
@@ -6244,8 +6398,8 @@ func (ec *executionContext) fieldContext_Query_getTransaction(ctx context.Contex
 	return fc, nil
 }
 
-func (ec *executionContext) _Query_getUserTransactions(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Query_getUserTransactions(ctx, field)
+func (ec *executionContext) _Query_getAllUserTransaction(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_getAllUserTransaction(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -6258,7 +6412,7 @@ func (ec *executionContext) _Query_getUserTransactions(ctx context.Context, fiel
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Query().GetUserTransactions(rctx, fc.Args["userID"].(string))
+		return ec.resolvers.Query().GetAllUserTransaction(rctx, fc.Args["id"].(string))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -6272,7 +6426,7 @@ func (ec *executionContext) _Query_getUserTransactions(ctx context.Context, fiel
 	return ec.marshalOTransaction2ᚕᚖbackendᚋgraphᚋmodelᚐTransaction(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_Query_getUserTransactions(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Query_getAllUserTransaction(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Query",
 		Field:      field,
@@ -6282,10 +6436,10 @@ func (ec *executionContext) fieldContext_Query_getUserTransactions(ctx context.C
 			switch field.Name {
 			case "id":
 				return ec.fieldContext_Transaction_id(ctx, field)
-			case "userID":
-				return ec.fieldContext_Transaction_userID(ctx, field)
-			case "detail":
-				return ec.fieldContext_Transaction_detail(ctx, field)
+			case "from":
+				return ec.fieldContext_Transaction_from(ctx, field)
+			case "to":
+				return ec.fieldContext_Transaction_to(ctx, field)
 			case "amount":
 				return ec.fieldContext_Transaction_amount(ctx, field)
 			}
@@ -6299,7 +6453,131 @@ func (ec *executionContext) fieldContext_Query_getUserTransactions(ctx context.C
 		}
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Query_getUserTransactions_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+	if fc.Args, err = ec.field_Query_getAllUserTransaction_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_getUserCreditTransactions(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_getUserCreditTransactions(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().GetUserCreditTransactions(rctx, fc.Args["to"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.([]*model.Transaction)
+	fc.Result = res
+	return ec.marshalOTransaction2ᚕᚖbackendᚋgraphᚋmodelᚐTransaction(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_getUserCreditTransactions(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Transaction_id(ctx, field)
+			case "from":
+				return ec.fieldContext_Transaction_from(ctx, field)
+			case "to":
+				return ec.fieldContext_Transaction_to(ctx, field)
+			case "amount":
+				return ec.fieldContext_Transaction_amount(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Transaction", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_getUserCreditTransactions_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_getUserDebutTransactions(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_getUserDebutTransactions(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().GetUserDebutTransactions(rctx, fc.Args["from"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.([]*model.Transaction)
+	fc.Result = res
+	return ec.marshalOTransaction2ᚕᚖbackendᚋgraphᚋmodelᚐTransaction(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_getUserDebutTransactions(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Transaction_id(ctx, field)
+			case "from":
+				return ec.fieldContext_Transaction_from(ctx, field)
+			case "to":
+				return ec.fieldContext_Transaction_to(ctx, field)
+			case "amount":
+				return ec.fieldContext_Transaction_amount(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Transaction", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_getUserDebutTransactions_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -7099,7 +7377,7 @@ func (ec *executionContext) _Transaction_id(ctx context.Context, field graphql.C
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.ID, nil
+		return ec.resolvers.Transaction().ID(rctx, obj)
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -7120,8 +7398,8 @@ func (ec *executionContext) fieldContext_Transaction_id(_ context.Context, field
 	fc = &graphql.FieldContext{
 		Object:     "Transaction",
 		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
+		IsMethod:   true,
+		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type ID does not have child fields")
 		},
@@ -7129,8 +7407,8 @@ func (ec *executionContext) fieldContext_Transaction_id(_ context.Context, field
 	return fc, nil
 }
 
-func (ec *executionContext) _Transaction_userID(ctx context.Context, field graphql.CollectedField, obj *model.Transaction) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Transaction_userID(ctx, field)
+func (ec *executionContext) _Transaction_from(ctx context.Context, field graphql.CollectedField, obj *model.Transaction) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Transaction_from(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -7143,51 +7421,7 @@ func (ec *executionContext) _Transaction_userID(ctx context.Context, field graph
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.UserID, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(string)
-	fc.Result = res
-	return ec.marshalNID2string(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_Transaction_userID(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Transaction",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type ID does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Transaction_detail(ctx context.Context, field graphql.CollectedField, obj *model.Transaction) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Transaction_detail(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.Detail, nil
+		return obj.From, nil
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -7201,7 +7435,48 @@ func (ec *executionContext) _Transaction_detail(ctx context.Context, field graph
 	return ec.marshalOString2string(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_Transaction_detail(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Transaction_from(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Transaction",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Transaction_to(ctx context.Context, field graphql.CollectedField, obj *model.Transaction) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Transaction_to(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.To, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalOString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Transaction_to(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Transaction",
 		Field:      field,
@@ -8060,10 +8335,10 @@ func (ec *executionContext) fieldContext_User_transactions(_ context.Context, fi
 			switch field.Name {
 			case "id":
 				return ec.fieldContext_Transaction_id(ctx, field)
-			case "userID":
-				return ec.fieldContext_Transaction_userID(ctx, field)
-			case "detail":
-				return ec.fieldContext_Transaction_detail(ctx, field)
+			case "from":
+				return ec.fieldContext_Transaction_from(ctx, field)
+			case "to":
+				return ec.fieldContext_Transaction_to(ctx, field)
 			case "amount":
 				return ec.fieldContext_Transaction_amount(ctx, field)
 			}
@@ -10203,6 +10478,47 @@ func (ec *executionContext) unmarshalInputCreateUserInput(ctx context.Context, o
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputMakeTransfer(ctx context.Context, obj interface{}) (model.MakeTransfer, error) {
+	var it model.MakeTransfer
+	asMap := map[string]interface{}{}
+	for k, v := range obj.(map[string]interface{}) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"from", "to", "amount"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "from":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("from"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.From = data
+		case "to":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("to"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.To = data
+		case "amount":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("amount"))
+			data, err := ec.unmarshalOFloat2ᚖfloat64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Amount = data
+		}
+	}
+
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputUpdatePlanInput(ctx context.Context, obj interface{}) (model.UpdatePlanInput, error) {
 	var it model.UpdatePlanInput
 	asMap := map[string]interface{}{}
@@ -10796,6 +11112,10 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "deleteHistory":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_deleteHistory(ctx, field)
+			})
+		case "makeTransaction":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_makeTransaction(ctx, field)
 			})
 		case "deleteAllTransactions":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
@@ -11437,7 +11757,7 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
-		case "getUserTransactions":
+		case "getAllUserTransaction":
 			field := field
 
 			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
@@ -11446,7 +11766,45 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 						ec.Error(ctx, ec.Recover(ctx, r))
 					}
 				}()
-				res = ec._Query_getUserTransactions(ctx, field)
+				res = ec._Query_getAllUserTransaction(ctx, field)
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "getUserCreditTransactions":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_getUserCreditTransactions(ctx, field)
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "getUserDebutTransactions":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_getUserDebutTransactions(ctx, field)
 				return res
 			}
 
@@ -11738,17 +12096,45 @@ func (ec *executionContext) _Transaction(ctx context.Context, sel ast.SelectionS
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("Transaction")
 		case "id":
-			out.Values[i] = ec._Transaction_id(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Transaction_id(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
 			}
-		case "userID":
-			out.Values[i] = ec._Transaction_userID(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
 			}
-		case "detail":
-			out.Values[i] = ec._Transaction_detail(ctx, field, obj)
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "from":
+			out.Values[i] = ec._Transaction_from(ctx, field, obj)
+		case "to":
+			out.Values[i] = ec._Transaction_to(ctx, field, obj)
 		case "amount":
 			out.Values[i] = ec._Transaction_amount(ctx, field, obj)
 		default:
@@ -12575,6 +12961,11 @@ func (ec *executionContext) marshalNID2string(ctx context.Context, sel ast.Selec
 		}
 	}
 	return res
+}
+
+func (ec *executionContext) unmarshalNMakeTransfer2backendᚋgraphᚋmodelᚐMakeTransfer(ctx context.Context, v interface{}) (model.MakeTransfer, error) {
+	res, err := ec.unmarshalInputMakeTransfer(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) marshalNNotification2backendᚋgraphᚋmodelᚐNotification(ctx context.Context, sel ast.SelectionSet, v model.Notification) graphql.Marshaler {
