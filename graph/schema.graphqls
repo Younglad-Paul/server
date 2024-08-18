@@ -112,6 +112,11 @@ type Description {
   point: String
 }
 
+type Wallet {
+  walletID: ID!
+  address: String
+}
+
 
 type Query {
   getAllUsers: [User]
@@ -145,6 +150,7 @@ type Query {
   getUnverifiedEmail(email: String!): Verify
   getAllPlans: [Plan]
   getPlan(planID: ID!): Plan
+  getWallet: Wallet
 }
 
 input CreateUserInput {
@@ -187,6 +193,12 @@ input UpdatePlanInput {
   description: [CreateDescriptionInput]
 }
 
+input EditWalletInput {
+  walletID: String
+  address: String
+
+}
+
 type Mutation {
   createUser(input: CreateUserInput!): User
   login(email: String!, password: String!): String!
@@ -211,4 +223,5 @@ type Mutation {
   createPlan(input: CreatePlanInput!): Plan
   updatePlan(planID: ID!, input: UpdatePlanInput!): Plan
   deletePlan(planID: ID!): Boolean
+  editWallet(walletID: ID!, input: EditWalletInput!): Wallet
 }

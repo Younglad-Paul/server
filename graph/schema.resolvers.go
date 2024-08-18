@@ -487,6 +487,33 @@ func (r *mutationResolver) DeletePlan(ctx context.Context, planID string) (*bool
 	return &success, nil
 }
 
+// EditWallet is the resolver for the editWallet field.
+func (r *mutationResolver) EditWallet(ctx context.Context, walletID string, input model.EditWalletInput) (*model.Wallet, error) {
+    collection := r.MongoClient.Database(os.Getenv("DB_NAME")).Collection(os.Getenv("WALLET"))
+
+    var existingWallet model.Wallet
+    err := collection.FindOne(ctx, bson.M{"walletID": walletID}).Decode(&existingWallet)
+    if err != nil {
+        return nil, fmt.Errorf("wallet not found %v", err)
+    }
+
+    if input.Address != nil {
+        existingWallet.Address = *input.Address
+    }
+
+    _, err = collection.UpdateOne(
+        ctx,
+        bson.M{"walletID": walletID},
+        bson.M{"$set": bson.M{"address": existingWallet.Address}},
+    )
+    if err != nil {
+        return nil, fmt.Errorf("failed to update wallet %v", err)
+    }
+
+    return &existingWallet, nil
+}
+
+
 // Timestamp is the resolver for the timestamp field.
 func (r *notificationResolver) Timestamp(ctx context.Context, obj *model.Notification) (*string, error) {
 	if obj == nil || obj.Timestamp.IsZero() {
@@ -867,26 +894,26 @@ func (r *queryResolver) GetUserHistory(ctx context.Context, userID string) ([]*m
 func (r *queryResolver) GetAllTransactions(ctx context.Context) ([]*model.Transaction, error) {
 	collection := r.MongoClient.Database(os.Getenv("DB_NAME")).Collection(os.Getenv("TRANSACT"))
 
-    cursor, err := collection.Find(ctx, bson.M{})
-    if err!= nil {
-        return nil, fmt.Errorf("error fetching transactions: %v", err)
-    }
-    defer cursor.Close(ctx)
+	cursor, err := collection.Find(ctx, bson.M{})
+	if err != nil {
+		return nil, fmt.Errorf("error fetching transactions: %v", err)
+	}
+	defer cursor.Close(ctx)
 
-    var transactions []*model.Transaction
-    for cursor.Next(ctx) {
-        var transaction model.Transaction
-        if err := cursor.Decode(&transaction); err!= nil {
-            return nil, fmt.Errorf("error decoding transaction: %v", err)
-        }
-        transactions = append(transactions, &transaction)
-    }
+	var transactions []*model.Transaction
+	for cursor.Next(ctx) {
+		var transaction model.Transaction
+		if err := cursor.Decode(&transaction); err != nil {
+			return nil, fmt.Errorf("error decoding transaction: %v", err)
+		}
+		transactions = append(transactions, &transaction)
+	}
 
-    if err := cursor.Err(); err!= nil {
-        return nil, fmt.Errorf("cursor error: %v", err)
-    }
+	if err := cursor.Err(); err != nil {
+		return nil, fmt.Errorf("cursor error: %v", err)
+	}
 
-    return transactions, nil
+	return transactions, nil
 }
 
 // GetTransaction is the resolver for the getTransaction field.
@@ -1091,6 +1118,18 @@ func (r *queryResolver) GetAllPlans(ctx context.Context) ([]*model.Plan, error) 
 func (r *queryResolver) GetPlan(ctx context.Context, planID string) (*model.Plan, error) {
 	panic(fmt.Errorf("not implemented: GetPlan - getPlan"))
 }
+
+// GetWallet is the resolver for the getWallet field.
+func (r *queryResolver) GetWallet(ctx context.Context) (*model.Wallet, error) {
+    var wallet model.Wallet
+    err := r.MongoClient.Database(os.Getenv("DB_NAME")).Collection(os.Getenv("WALLET")).FindOne(ctx, bson.M{}).Decode(&wallet)
+    if err != nil {
+        return nil, fmt.Errorf("error fetching wallet: %v", err)
+    }
+
+    return &wallet, nil
+}
+
 
 // Timestamp is the resolver for the timestamp field.
 func (r *referenceResolver) Timestamp(ctx context.Context, obj *model.Reference) (*string, error) {

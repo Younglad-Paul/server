@@ -27,6 +27,11 @@ type CreateUserInput struct {
 	Type      *string `json:"type,omitempty"`
 }
 
+type EditWalletInput struct {
+	WalletID *string `json:"walletID,omitempty"`
+	Address  *string `json:"address,omitempty"`
+}
+
 type MakeTransfer struct {
 	From   *string  `json:"from,omitempty"`
 	To     *string  `json:"to,omitempty"`
