@@ -96,6 +96,7 @@ func (r *mutationResolver) CreateUser(ctx context.Context, input model.CreateUse
 	if err != nil {
 		return nil, fmt.Errorf("error creating user: %v", err)
 	}
+
 	//Create Memo
 	userMemo := r.MongoClient.Database(os.Getenv("DB_NAME")).Collection(os.Getenv("MEMO"))
 	err = utils.CreateMemo(ctx, userMemo, user.UserID)
@@ -253,6 +254,37 @@ func (r *mutationResolver) EditUser(ctx context.Context, userID string, input mo
 
 	return &existingUser, nil
 }
+
+// ResetPassword is the resolver for the resetPassword field.
+func (r *mutationResolver) ResetPassword(ctx context.Context, email string, newPassword string) (*string, error) {
+	collection := r.MongoClient.Database(os.Getenv("DB_NAME")).Collection(os.Getenv("COLLECTION_NAME"))
+
+	var existingUser model.User
+	err := collection.FindOne(ctx, bson.M{"email": email}).Decode(&existingUser)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, fmt.Errorf("no user found with email: %s", email)
+		}
+		return nil, fmt.Errorf("error finding user: %v", err)
+	}
+
+	hashedPassword, err := HashPassword(newPassword)
+	if err != nil {
+		return nil, fmt.Errorf("error hashing password: %v", err)
+	}
+
+	update := bson.M{
+		"password": hashedPassword,
+	}
+
+	_, err = collection.UpdateOne(ctx, bson.M{"email": email}, bson.M{"$set": update})
+	if err != nil {
+		return nil, fmt.Errorf("error updating user: %v", err)
+	}
+
+	return &existingUser.Email, nil
+}
+
 
 // DeleteAllUsers is the resolver for the deleteAllUsers field.
 func (r *mutationResolver) DeleteAllUsers(ctx context.Context) (*bool, error) {
@@ -489,30 +521,29 @@ func (r *mutationResolver) DeletePlan(ctx context.Context, planID string) (*bool
 
 // EditWallet is the resolver for the editWallet field.
 func (r *mutationResolver) EditWallet(ctx context.Context, walletID string, input model.EditWalletInput) (*model.Wallet, error) {
-    collection := r.MongoClient.Database(os.Getenv("DB_NAME")).Collection(os.Getenv("WALLET"))
+	collection := r.MongoClient.Database(os.Getenv("DB_NAME")).Collection(os.Getenv("WALLET"))
 
-    var existingWallet model.Wallet
-    err := collection.FindOne(ctx, bson.M{"walletID": walletID}).Decode(&existingWallet)
-    if err != nil {
-        return nil, fmt.Errorf("wallet not found %v", err)
-    }
+	var existingWallet model.Wallet
+	err := collection.FindOne(ctx, bson.M{"walletID": walletID}).Decode(&existingWallet)
+	if err != nil {
+		return nil, fmt.Errorf("wallet not found %v", err)
+	}
 
-    if input.Address != nil {
-        existingWallet.Address = *input.Address
-    }
+	if input.Address != nil {
+		existingWallet.Address = *input.Address
+	}
 
-    _, err = collection.UpdateOne(
-        ctx,
-        bson.M{"walletID": walletID},
-        bson.M{"$set": bson.M{"address": existingWallet.Address}},
-    )
-    if err != nil {
-        return nil, fmt.Errorf("failed to update wallet %v", err)
-    }
+	_, err = collection.UpdateOne(
+		ctx,
+		bson.M{"walletID": walletID},
+		bson.M{"$set": bson.M{"address": existingWallet.Address}},
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update wallet %v", err)
+	}
 
-    return &existingWallet, nil
+	return &existingWallet, nil
 }
-
 
 // Timestamp is the resolver for the timestamp field.
 func (r *notificationResolver) Timestamp(ctx context.Context, obj *model.Notification) (*string, error) {
@@ -1121,15 +1152,14 @@ func (r *queryResolver) GetPlan(ctx context.Context, planID string) (*model.Plan
 
 // GetWallet is the resolver for the getWallet field.
 func (r *queryResolver) GetWallet(ctx context.Context) (*model.Wallet, error) {
-    var wallet model.Wallet
-    err := r.MongoClient.Database(os.Getenv("DB_NAME")).Collection(os.Getenv("WALLET")).FindOne(ctx, bson.M{}).Decode(&wallet)
-    if err != nil {
-        return nil, fmt.Errorf("error fetching wallet: %v", err)
-    }
+	var wallet model.Wallet
+	err := r.MongoClient.Database(os.Getenv("DB_NAME")).Collection(os.Getenv("WALLET")).FindOne(ctx, bson.M{}).Decode(&wallet)
+	if err != nil {
+		return nil, fmt.Errorf("error fetching wallet: %v", err)
+	}
 
-    return &wallet, nil
+	return &wallet, nil
 }
-
 
 // Timestamp is the resolver for the timestamp field.
 func (r *referenceResolver) Timestamp(ctx context.Context, obj *model.Reference) (*string, error) {
