@@ -14,6 +14,7 @@ func CreateVerificationCode(ctx context.Context, collection *mongo.Collection, E
 	verify := &model.Verify{
 		UniqueVerifier: uuid.New().String(),
 		Email:          Email,
+		Verified: 		false,
 	}
 	_, err := collection.InsertOne(ctx, verify)
 	if err != nil {

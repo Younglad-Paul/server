@@ -127,8 +127,10 @@ type ComplexityRoot struct {
 		Login                     func(childComplexity int, email string, password string) int
 		MakeTransaction           func(childComplexity int, input model.MakeTransfer) int
 		MarkNotificationAsSeen    func(childComplexity int, id string) int
+		ReferralCount             func(childComplexity int, link string) int
 		ResetPassword             func(childComplexity int, email string, newPassword string) int
 		UpdatePlan                func(childComplexity int, planID string, input model.UpdatePlanInput) int
+		VerifyUser                func(childComplexity int, uniqueverifier string) int
 	}
 
 	Notification struct {
@@ -181,6 +183,7 @@ type ComplexityRoot struct {
 		GetUserDebutTransactions  func(childComplexity int, from string) int
 		GetUserHistory            func(childComplexity int, userID string) int
 		GetUserNotifications      func(childComplexity int, userID string) int
+		GetUserVerificationToken  func(childComplexity int, email string) int
 		GetWallet                 func(childComplexity int) int
 	}
 
@@ -235,6 +238,7 @@ type ComplexityRoot struct {
 		Email          func(childComplexity int) int
 		ID             func(childComplexity int) int
 		UniqueVerifier func(childComplexity int) int
+		Verified       func(childComplexity int) int
 	}
 
 	Wallet struct {
@@ -281,6 +285,8 @@ type MutationResolver interface {
 	UpdatePlan(ctx context.Context, planID string, input model.UpdatePlanInput) (*model.Plan, error)
 	DeletePlan(ctx context.Context, planID string) (*bool, error)
 	EditWallet(ctx context.Context, walletID string, input model.EditWalletInput) (*model.Wallet, error)
+	ReferralCount(ctx context.Context, link string) (*model.Referral, error)
+	VerifyUser(ctx context.Context, uniqueverifier string) (*bool, error)
 }
 type NotificationResolver interface {
 	Timestamp(ctx context.Context, obj *model.Notification) (*string, error)
@@ -318,6 +324,7 @@ type QueryResolver interface {
 	GetAllPlans(ctx context.Context) ([]*model.Plan, error)
 	GetPlan(ctx context.Context, planID string) (*model.Plan, error)
 	GetWallet(ctx context.Context) (*model.Wallet, error)
+	GetUserVerificationToken(ctx context.Context, email string) (*model.Verify, error)
 }
 type ReferenceResolver interface {
 	Timestamp(ctx context.Context, obj *model.Reference) (*string, error)
@@ -793,6 +800,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Mutation.MarkNotificationAsSeen(childComplexity, args["id"].(string)), true
 
+	case "Mutation.referralCount":
+		if e.complexity.Mutation.ReferralCount == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_referralCount_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.ReferralCount(childComplexity, args["link"].(string)), true
+
 	case "Mutation.resetPassword":
 		if e.complexity.Mutation.ResetPassword == nil {
 			break
@@ -816,6 +835,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Mutation.UpdatePlan(childComplexity, args["planID"].(string), args["input"].(model.UpdatePlanInput)), true
+
+	case "Mutation.VerifyUser":
+		if e.complexity.Mutation.VerifyUser == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_VerifyUser_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.VerifyUser(childComplexity, args["uniqueverifier"].(string)), true
 
 	case "Notification.id":
 		if e.complexity.Notification.ID == nil {
@@ -1208,6 +1239,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Query.GetUserNotifications(childComplexity, args["userID"].(string)), true
 
+	case "Query.getUserVerificationToken":
+		if e.complexity.Query.GetUserVerificationToken == nil {
+			break
+		}
+
+		args, err := ec.field_Query_getUserVerificationToken_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.GetUserVerificationToken(childComplexity, args["email"].(string)), true
+
 	case "Query.getWallet":
 		if e.complexity.Query.GetWallet == nil {
 			break
@@ -1460,6 +1503,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Verify.UniqueVerifier(childComplexity), true
 
+	case "Verify.verified":
+		if e.complexity.Verify.Verified == nil {
+			break
+		}
+
+		return e.complexity.Verify.Verified(childComplexity), true
+
 	case "Wallet.address":
 		if e.complexity.Wallet.Address == nil {
 			break
@@ -1603,6 +1653,21 @@ var parsedSchema = gqlparser.MustLoadSchema(sources...)
 // endregion ************************** generated!.gotpl **************************
 
 // region    ***************************** args.gotpl *****************************
+
+func (ec *executionContext) field_Mutation_VerifyUser_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 string
+	if tmp, ok := rawArgs["uniqueverifier"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("uniqueverifier"))
+		arg0, err = ec.unmarshalNString2string(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["uniqueverifier"] = arg0
+	return args, nil
+}
 
 func (ec *executionContext) field_Mutation_createNotification_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
@@ -1907,6 +1972,21 @@ func (ec *executionContext) field_Mutation_markNotificationAsSeen_args(ctx conte
 		}
 	}
 	args["id"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_referralCount_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 string
+	if tmp, ok := rawArgs["link"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("link"))
+		arg0, err = ec.unmarshalNString2string(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["link"] = arg0
 	return args, nil
 }
 
@@ -2225,6 +2305,21 @@ func (ec *executionContext) field_Query_getUserNotifications_args(ctx context.Co
 		}
 	}
 	args["userID"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_getUserVerificationToken_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 string
+	if tmp, ok := rawArgs["email"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("email"))
+		arg0, err = ec.unmarshalNString2string(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["email"] = arg0
 	return args, nil
 }
 
@@ -4492,6 +4587,8 @@ func (ec *executionContext) fieldContext_Mutation_deleteAllUnverifiedEmails(_ co
 				return ec.fieldContext_Verify_uniqueverifier(ctx, field)
 			case "email":
 				return ec.fieldContext_Verify_email(ctx, field)
+			case "verified":
+				return ec.fieldContext_Verify_verified(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Verify", field.Name)
 		},
@@ -4541,6 +4638,8 @@ func (ec *executionContext) fieldContext_Mutation_deleteUnverifiedEmail(ctx cont
 				return ec.fieldContext_Verify_uniqueverifier(ctx, field)
 			case "email":
 				return ec.fieldContext_Verify_email(ctx, field)
+			case "verified":
+				return ec.fieldContext_Verify_verified(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Verify", field.Name)
 		},
@@ -4799,6 +4898,118 @@ func (ec *executionContext) fieldContext_Mutation_editWallet(ctx context.Context
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_editWallet_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_referralCount(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_referralCount(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().ReferralCount(rctx, fc.Args["link"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*model.Referral)
+	fc.Result = res
+	return ec.marshalOReferral2ᚖbackendᚋgraphᚋmodelᚐReferral(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_referralCount(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Referral_id(ctx, field)
+			case "userID":
+				return ec.fieldContext_Referral_userID(ctx, field)
+			case "link":
+				return ec.fieldContext_Referral_link(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Referral", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_referralCount_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_VerifyUser(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_VerifyUser(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().VerifyUser(rctx, fc.Args["uniqueverifier"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*bool)
+	fc.Result = res
+	return ec.marshalOBoolean2ᚖbool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_VerifyUser(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_VerifyUser_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -6977,6 +7188,8 @@ func (ec *executionContext) fieldContext_Query_getAllUnverifiedEmails(_ context.
 				return ec.fieldContext_Verify_uniqueverifier(ctx, field)
 			case "email":
 				return ec.fieldContext_Verify_email(ctx, field)
+			case "verified":
+				return ec.fieldContext_Verify_verified(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Verify", field.Name)
 		},
@@ -7026,6 +7239,8 @@ func (ec *executionContext) fieldContext_Query_getUnverifiedEmail(ctx context.Co
 				return ec.fieldContext_Verify_uniqueverifier(ctx, field)
 			case "email":
 				return ec.fieldContext_Verify_email(ctx, field)
+			case "verified":
+				return ec.fieldContext_Verify_verified(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Verify", field.Name)
 		},
@@ -7212,6 +7427,68 @@ func (ec *executionContext) fieldContext_Query_getWallet(_ context.Context, fiel
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Wallet", field.Name)
 		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_getUserVerificationToken(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_getUserVerificationToken(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().GetUserVerificationToken(rctx, fc.Args["email"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*model.Verify)
+	fc.Result = res
+	return ec.marshalOVerify2ᚖbackendᚋgraphᚋmodelᚐVerify(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_getUserVerificationToken(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Verify_id(ctx, field)
+			case "uniqueverifier":
+				return ec.fieldContext_Verify_uniqueverifier(ctx, field)
+			case "email":
+				return ec.fieldContext_Verify_email(ctx, field)
+			case "verified":
+				return ec.fieldContext_Verify_verified(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Verify", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_getUserVerificationToken_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
 	}
 	return fc, nil
 }
@@ -8891,6 +9168,47 @@ func (ec *executionContext) fieldContext_Verify_email(_ context.Context, field g
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Verify_verified(ctx context.Context, field graphql.CollectedField, obj *model.Verify) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Verify_verified(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Verified, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	fc.Result = res
+	return ec.marshalOBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Verify_verified(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Verify",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
 		},
 	}
 	return fc, nil
@@ -11649,6 +11967,14 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_editWallet(ctx, field)
 			})
+		case "referralCount":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_referralCount(ctx, field)
+			})
+		case "VerifyUser":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_VerifyUser(ctx, field)
+			})
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -12437,6 +12763,25 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "getUserVerificationToken":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_getUserVerificationToken(ctx, field)
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
 		case "__type":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Query___type(ctx, field)
@@ -13121,6 +13466,8 @@ func (ec *executionContext) _Verify(ctx context.Context, sel ast.SelectionSet, o
 			if out.Values[i] == graphql.Null {
 				atomic.AddUint32(&out.Invalids, 1)
 			}
+		case "verified":
+			out.Values[i] = ec._Verify_verified(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}

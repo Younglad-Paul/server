@@ -95,6 +95,7 @@ type Verify{
   id: ID!  
   uniqueverifier: String!
   email: String!
+  verified: Boolean
 }
 
 type Plan {
@@ -156,6 +157,7 @@ type Query {
   getAllPlans: [Plan]
   getPlan(planID: ID!): Plan
   getWallet: Wallet
+  getUserVerificationToken(email: String!): Verify
 }
 
 input CreateUserInput {
@@ -230,4 +232,6 @@ type Mutation {
   updatePlan(planID: ID!, input: UpdatePlanInput!): Plan
   deletePlan(planID: ID!): Boolean
   editWallet(walletID: ID!, input: EditWalletInput!): Wallet
+  referralCount(link: String!): Referral
+  VerifyUser(uniqueverifier: String!): Boolean
 }

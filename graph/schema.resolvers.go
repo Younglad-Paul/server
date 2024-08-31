@@ -285,7 +285,6 @@ func (r *mutationResolver) ResetPassword(ctx context.Context, email string, newP
 	return &existingUser.Email, nil
 }
 
-
 // DeleteAllUsers is the resolver for the deleteAllUsers field.
 func (r *mutationResolver) DeleteAllUsers(ctx context.Context) (*bool, error) {
 	panic(fmt.Errorf("not implemented: DeleteAllUsers - deleteAllUsers"))
@@ -543,6 +542,62 @@ func (r *mutationResolver) EditWallet(ctx context.Context, walletID string, inpu
 	}
 
 	return &existingWallet, nil
+}
+
+// ReferralCount is the resolver for the referralCount field.
+func (r *mutationResolver) ReferralCount(ctx context.Context, link string) (*model.Referral, error) {
+	collection := r.MongoClient.Database(os.Getenv("DB_NAME")).Collection(os.Getenv("REFERRAL"))
+
+	var referal model.Referral
+
+	filter := bson.M{"link": link}
+
+	err := collection.FindOne(ctx, filter).Decode(&referal)
+	if err == mongo.ErrNoDocuments {
+		return nil, fmt.Errorf("no references found")
+	} else if err != nil {
+		return nil, fmt.Errorf("error finding references: %v", err)
+	}
+
+	referal.Count += 1
+
+	update := bson.M{
+		"$set": bson.M{"count": referal.Count},
+	}
+	_, err = collection.UpdateOne(ctx, filter, update)
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to increament count")
+	}
+
+	return &referal, nil
+}
+
+// VerifyUser is the resolver for the VerifyUser field.
+func (r *mutationResolver) VerifyUser(ctx context.Context, uniqueverifier string) (*bool, error) {
+	collection := r.MongoClient.Database(os.Getenv("DB_NAME")).Collection(os.Getenv("VERIFICATION"))
+
+	var verification model.Verify
+	filter := bson.M{"uniqueverifier": uniqueverifier}
+	err := collection.FindOne(ctx, filter).Decode(&verification)
+	if err == mongo.ErrNoDocuments {
+		return nil, fmt.Errorf("no verification found")
+	} else if err != nil {
+		return nil, fmt.Errorf("error finding verification: %v", err)
+	}
+
+	verification.Verified = true
+
+	update := bson.M{
+		"$set": bson.M{"verified": verification.Verified},
+	}
+	_, err = collection.UpdateOne(ctx, filter, update)
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to verify user")
+	}
+
+	return &verification.Verified, nil
 }
 
 // Timestamp is the resolver for the timestamp field.
@@ -1161,6 +1216,23 @@ func (r *queryResolver) GetWallet(ctx context.Context) (*model.Wallet, error) {
 	return &wallet, nil
 }
 
+// GetUserVerificationToken is the resolver for the getUserVerificationToken field.
+func (r *queryResolver) GetUserVerificationToken(ctx context.Context, email string) (*model.Verify, error) {
+	collection := r.MongoClient.Database(os.Getenv("DB_NAME")).Collection(os.Getenv("VERIFICATION"))
+
+	var verify *model.Verify
+	filter := bson.M{"email": email}
+	err := collection.FindOne(ctx, filter).Decode(&verify)
+
+	if err == mongo.ErrNoDocuments {
+		return nil, fmt.Errorf("%v not found. could be that the email address is already verified or does not exist", email)
+	} else if err != nil {
+		return nil, fmt.Errorf("error finding email: %v", err)
+	}
+
+	return verify, nil
+}
+
 // Timestamp is the resolver for the timestamp field.
 func (r *referenceResolver) Timestamp(ctx context.Context, obj *model.Reference) (*string, error) {
 	panic(fmt.Errorf("not implemented: Timestamp - timestamp"))
@@ -1293,8 +1365,6 @@ type verifyResolver struct{ *Resolver }
 //   - When renaming or deleting a resolver the old code will be put in here. You can safely delete
 //     it when you're done.
 //   - You have helper methods in this file. Move them out to keep these resolver files clean.
-type descriptionResolver struct{ *Resolver }
-
 func HashPassword(password string) (string, error) {
 	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
 	return string(bytes), err

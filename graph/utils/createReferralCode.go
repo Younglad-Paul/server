@@ -23,9 +23,10 @@ func GenerateRandomString(n int) string {
 
 func CreateReferralCode(ctx context.Context, collection *mongo.Collection, userID string) error {
 	ref := &model.Referral{
-		ID:        uuid.New().String(),
-		UserID:    userID,
-		Link:      GenerateRandomString(8),
+		ID:     uuid.New().String(),
+		UserID: userID,
+		Link:   GenerateRandomString(8),
+		Count:  0,
 	}
 
 	_, err := collection.InsertOne(ctx, ref)
