@@ -29,10 +29,10 @@ func withResponseWriter(next http.Handler) http.Handler {
 
 func main() {
 	// Load env file
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatalf("Error loading .env file: %s", err)
-	}
+if err := godotenv.Load(); err != nil {
+    log.Printf("No .env file found, proceeding without it: %v", err)
+}
+
 
 	// Get keys from the env file
 	port := os.Getenv("PORT")
