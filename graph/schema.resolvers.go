@@ -20,6 +20,17 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+func HashPassword(password string) (string, error) {
+	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
+	return string(bytes), err
+}
+func getStringOrDefault(value *string, defaultValue string) string {
+	if value == nil {
+		return defaultValue
+	}
+	return *value
+}
+
 // Timestamp is the resolver for the timestamp field.
 func (r *balanceResolver) Timestamp(ctx context.Context, obj *model.Balance) (*string, error) {
 	if obj == nil || obj.Timestamp.IsZero() {
@@ -1358,23 +1369,3 @@ type referenceResolver struct{ *Resolver }
 type transactionResolver struct{ *Resolver }
 type userResolver struct{ *Resolver }
 type verifyResolver struct{ *Resolver }
-
-// !!! WARNING !!!
-// The code below was going to be deleted when updating resolvers. It has been copied here so you have
-// one last chance to move it out of harms way if you want. There are two reasons this happens:
-//   - When renaming or deleting a resolver the old code will be put in here. You can safely delete
-//     it when you're done.
-//   - You have helper methods in this file. Move them out to keep these resolver files clean.
-func HashPassword(password string) (string, error) {
-	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
-	return string(bytes), err
-}
-func getStringOrDefault(value *string, defaultValue string) string {
-	if value == nil {
-		return defaultValue
-	}
-	return *value
-}
-func (r *queryResolver) GetUserTransactions(ctx context.Context, userID string) ([]*model.Transaction, error) {
-	panic(fmt.Errorf("not implemented: GetUserTransactions - getUserTransactions"))
-}
