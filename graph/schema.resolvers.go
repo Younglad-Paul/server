@@ -20,17 +20,6 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-func HashPassword(password string) (string, error) {
-	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
-	return string(bytes), err
-}
-func getStringOrDefault(value *string, defaultValue string) string {
-	if value == nil {
-		return defaultValue
-	}
-	return *value
-}
-
 // Timestamp is the resolver for the timestamp field.
 func (r *balanceResolver) Timestamp(ctx context.Context, obj *model.Balance) (*string, error) {
 	if obj == nil || obj.Timestamp.IsZero() {
@@ -1369,3 +1358,24 @@ type referenceResolver struct{ *Resolver }
 type transactionResolver struct{ *Resolver }
 type userResolver struct{ *Resolver }
 type verifyResolver struct{ *Resolver }
+
+func (r *referralResolver) Count(ctx context.Context, obj *model.Referral) (*float64, error) {
+	if obj == nil {
+		return nil, fmt.Errorf("referral object is nil")
+	}
+
+	return &obj.Count, nil
+}
+
+type referralResolver struct{ *Resolver }
+
+func HashPassword(password string) (string, error) {
+	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
+	return string(bytes), err
+}
+func getStringOrDefault(value *string, defaultValue string) string {
+	if value == nil {
+		return defaultValue
+	}
+	return *value
+}

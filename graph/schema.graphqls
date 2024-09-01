@@ -53,6 +53,7 @@ type Referral {
   id: ID!
   userID: ID!
   link: String
+  count: Float
 }
 
 type Memo {

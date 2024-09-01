@@ -195,6 +195,7 @@ type ComplexityRoot struct {
 	}
 
 	Referral struct {
+		Count  func(childComplexity int) int
 		ID     func(childComplexity int) int
 		Link   func(childComplexity int) int
 		UserID func(childComplexity int) int
@@ -1285,6 +1286,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Reference.UserID(childComplexity), true
+
+	case "Referral.count":
+		if e.complexity.Referral.Count == nil {
+			break
+		}
+
+		return e.complexity.Referral.Count(childComplexity), true
 
 	case "Referral.id":
 		if e.complexity.Referral.ID == nil {
@@ -4946,6 +4954,8 @@ func (ec *executionContext) fieldContext_Mutation_referralCount(ctx context.Cont
 				return ec.fieldContext_Referral_userID(ctx, field)
 			case "link":
 				return ec.fieldContext_Referral_link(ctx, field)
+			case "count":
+				return ec.fieldContext_Referral_count(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Referral", field.Name)
 		},
@@ -6196,6 +6206,8 @@ func (ec *executionContext) fieldContext_Query_getAllReferral(_ context.Context,
 				return ec.fieldContext_Referral_userID(ctx, field)
 			case "link":
 				return ec.fieldContext_Referral_link(ctx, field)
+			case "count":
+				return ec.fieldContext_Referral_count(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Referral", field.Name)
 		},
@@ -6245,6 +6257,8 @@ func (ec *executionContext) fieldContext_Query_getReferral(ctx context.Context, 
 				return ec.fieldContext_Referral_userID(ctx, field)
 			case "link":
 				return ec.fieldContext_Referral_link(ctx, field)
+			case "count":
+				return ec.fieldContext_Referral_count(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Referral", field.Name)
 		},
@@ -7916,6 +7930,47 @@ func (ec *executionContext) fieldContext_Referral_link(_ context.Context, field 
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Referral_count(ctx context.Context, field graphql.CollectedField, obj *model.Referral) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Referral_count(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Count, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(float64)
+	fc.Result = res
+	return ec.marshalOFloat2float64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Referral_count(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Referral",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
 		},
 	}
 	return fc, nil
@@ -12915,6 +12970,8 @@ func (ec *executionContext) _Referral(ctx context.Context, sel ast.SelectionSet,
 			}
 		case "link":
 			out.Values[i] = ec._Referral_link(ctx, field, obj)
+		case "count":
+			out.Values[i] = ec._Referral_count(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
