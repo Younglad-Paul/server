@@ -65,7 +65,7 @@ func main() {
 
 	// Set up CORS
 	corsHandler := cors.New(cors.Options{
-		AllowedOrigins:   []string{"https://aramco.vercel.app", "http://localhost:3000"},
+		AllowedOrigins:   []string{"https://www.aramcodashboard.com", "http://localhost:3000"},
 		AllowedMethods:   []string{"GET", "POST", "OPTIONS"},
 		AllowedHeaders:   []string{"*"},
 		AllowCredentials: true,
