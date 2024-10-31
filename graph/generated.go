@@ -50,6 +50,7 @@ type ResolverRoot interface {
 	Transaction() TransactionResolver
 	User() UserResolver
 	Verify() VerifyResolver
+	Withdrawal() WithdrawalResolver
 }
 
 type DirectiveRoot struct {
@@ -104,9 +105,11 @@ type ComplexityRoot struct {
 	}
 
 	Mutation struct {
-		CreateNotification        func(childComplexity int, userID string, message string) int
+		CreateInvestment          func(childComplexity int, userID string, input model.CreateInvestmentInput) int
+		CreateNotification        func(childComplexity int, userID string, title string, message string) int
 		CreatePlan                func(childComplexity int, input model.CreatePlanInput) int
 		CreateUser                func(childComplexity int, input model.CreateUserInput) int
+		CreateWithdrawalRequest   func(childComplexity int, userID string, input model.CreateWithdrawalRequestInput) int
 		DeleteAllHistory          func(childComplexity int) int
 		DeleteAllMemos            func(childComplexity int) int
 		DeleteAllTransactions     func(childComplexity int) int
@@ -138,6 +141,7 @@ type ComplexityRoot struct {
 		Message   func(childComplexity int) int
 		Seen      func(childComplexity int) int
 		Timestamp func(childComplexity int) int
+		Title     func(childComplexity int) int
 		UserID    func(childComplexity int) int
 	}
 
@@ -166,6 +170,7 @@ type ComplexityRoot struct {
 		GetAllUnverifiedEmails    func(childComplexity int) int
 		GetAllUserTransaction     func(childComplexity int, id string) int
 		GetAllUsers               func(childComplexity int) int
+		GetAllWithdrawalRequests  func(childComplexity int) int
 		GetAsset                  func(childComplexity int, assetID string) int
 		GetBalance                func(childComplexity int, userID string) int
 		GetCredit                 func(childComplexity int, userID string) int
@@ -184,6 +189,7 @@ type ComplexityRoot struct {
 		GetUserHistory            func(childComplexity int, userID string) int
 		GetUserNotifications      func(childComplexity int, userID string) int
 		GetUserVerificationToken  func(childComplexity int, email string) int
+		GetUserWithdrawalRequests func(childComplexity int, userID string) int
 		GetWallet                 func(childComplexity int) int
 	}
 
@@ -233,6 +239,7 @@ type ComplexityRoot struct {
 		Type         func(childComplexity int) int
 		UserID       func(childComplexity int) int
 		UserImage    func(childComplexity int) int
+		Wallet       func(childComplexity int) int
 	}
 
 	Verify struct {
@@ -245,6 +252,14 @@ type ComplexityRoot struct {
 	Wallet struct {
 		Address  func(childComplexity int) int
 		WalletID func(childComplexity int) int
+	}
+
+	Withdrawal struct {
+		Amount    func(childComplexity int) int
+		From      func(childComplexity int) int
+		Status    func(childComplexity int) int
+		Timestamp func(childComplexity int) int
+		UserID    func(childComplexity int) int
 	}
 }
 
@@ -268,7 +283,9 @@ type MutationResolver interface {
 	DeleteAllUsers(ctx context.Context) (*bool, error)
 	DeleteUser(ctx context.Context, userID string) (*bool, error)
 	DeleteBalance(ctx context.Context, id string) (*bool, error)
+	CreateInvestment(ctx context.Context, userID string, input model.CreateInvestmentInput) (*model.Investment, error)
 	DeleteInvestment(ctx context.Context, id string) (*bool, error)
+	CreateWithdrawalRequest(ctx context.Context, userID string, input model.CreateWithdrawalRequestInput) (*model.Withdrawal, error)
 	DeleteCredit(ctx context.Context, id string) (*bool, error)
 	DeleteReference(ctx context.Context, id string) (*bool, error)
 	DeleteAllMemos(ctx context.Context) (*bool, error)
@@ -278,7 +295,7 @@ type MutationResolver interface {
 	MakeTransaction(ctx context.Context, input model.MakeTransfer) (*model.Transaction, error)
 	DeleteAllTransactions(ctx context.Context) (*bool, error)
 	DeleteTransaction(ctx context.Context, id string) (*bool, error)
-	CreateNotification(ctx context.Context, userID string, message string) (*model.Notification, error)
+	CreateNotification(ctx context.Context, userID string, title string, message string) (*model.Notification, error)
 	MarkNotificationAsSeen(ctx context.Context, id string) (*model.Notification, error)
 	DeleteAllUnverifiedEmails(ctx context.Context) ([]*model.Verify, error)
 	DeleteUnverifiedEmail(ctx context.Context, email string) (*model.Verify, error)
@@ -298,7 +315,7 @@ type QueryResolver interface {
 	GetAllBalances(ctx context.Context) ([]*model.Balance, error)
 	GetBalance(ctx context.Context, userID string) (*model.Balance, error)
 	GetAllInvestments(ctx context.Context) ([]*model.Investment, error)
-	GetInvestment(ctx context.Context, userID string) (*model.Investment, error)
+	GetInvestment(ctx context.Context, userID string) ([]*model.Investment, error)
 	GetAllCredits(ctx context.Context) ([]*model.Credit, error)
 	GetCredit(ctx context.Context, userID string) (*model.Credit, error)
 	GetAllReferences(ctx context.Context) ([]*model.Reference, error)
@@ -326,6 +343,8 @@ type QueryResolver interface {
 	GetPlan(ctx context.Context, planID string) (*model.Plan, error)
 	GetWallet(ctx context.Context) (*model.Wallet, error)
 	GetUserVerificationToken(ctx context.Context, email string) (*model.Verify, error)
+	GetAllWithdrawalRequests(ctx context.Context) ([]*model.Withdrawal, error)
+	GetUserWithdrawalRequests(ctx context.Context, userID string) ([]*model.Withdrawal, error)
 }
 type ReferenceResolver interface {
 	Timestamp(ctx context.Context, obj *model.Reference) (*string, error)
@@ -347,6 +366,9 @@ type UserResolver interface {
 }
 type VerifyResolver interface {
 	ID(ctx context.Context, obj *model.Verify) (string, error)
+}
+type WithdrawalResolver interface {
+	Timestamp(ctx context.Context, obj *model.Withdrawal) (*string, error)
 }
 
 type executableSchema struct {
@@ -550,6 +572,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Memo.UserID(childComplexity), true
 
+	case "Mutation.CreateInvestment":
+		if e.complexity.Mutation.CreateInvestment == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_CreateInvestment_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.CreateInvestment(childComplexity, args["userID"].(string), args["input"].(model.CreateInvestmentInput)), true
+
 	case "Mutation.createNotification":
 		if e.complexity.Mutation.CreateNotification == nil {
 			break
@@ -560,7 +594,7 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.Mutation.CreateNotification(childComplexity, args["userID"].(string), args["message"].(string)), true
+		return e.complexity.Mutation.CreateNotification(childComplexity, args["userID"].(string), args["title"].(string), args["message"].(string)), true
 
 	case "Mutation.createPlan":
 		if e.complexity.Mutation.CreatePlan == nil {
@@ -585,6 +619,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Mutation.CreateUser(childComplexity, args["input"].(model.CreateUserInput)), true
+
+	case "Mutation.CreateWithdrawalRequest":
+		if e.complexity.Mutation.CreateWithdrawalRequest == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_CreateWithdrawalRequest_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.CreateWithdrawalRequest(childComplexity, args["userID"].(string), args["input"].(model.CreateWithdrawalRequestInput)), true
 
 	case "Mutation.deleteAllHistory":
 		if e.complexity.Mutation.DeleteAllHistory == nil {
@@ -877,6 +923,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Notification.Timestamp(childComplexity), true
 
+	case "Notification.title":
+		if e.complexity.Notification.Title == nil {
+			break
+		}
+
+		return e.complexity.Notification.Title(childComplexity), true
+
 	case "Notification.userid":
 		if e.complexity.Notification.UserID == nil {
 			break
@@ -1035,6 +1088,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Query.GetAllUsers(childComplexity), true
+
+	case "Query.getAllWithdrawalRequests":
+		if e.complexity.Query.GetAllWithdrawalRequests == nil {
+			break
+		}
+
+		return e.complexity.Query.GetAllWithdrawalRequests(childComplexity), true
 
 	case "Query.getAsset":
 		if e.complexity.Query.GetAsset == nil {
@@ -1251,6 +1311,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Query.GetUserVerificationToken(childComplexity, args["email"].(string)), true
+
+	case "Query.getUserWithdrawalRequests":
+		if e.complexity.Query.GetUserWithdrawalRequests == nil {
+			break
+		}
+
+		args, err := ec.field_Query_getUserWithdrawalRequests_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.GetUserWithdrawalRequests(childComplexity, args["userID"].(string)), true
 
 	case "Query.getWallet":
 		if e.complexity.Query.GetWallet == nil {
@@ -1490,6 +1562,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.User.UserImage(childComplexity), true
 
+	case "User.wallet":
+		if e.complexity.User.Wallet == nil {
+			break
+		}
+
+		return e.complexity.User.Wallet(childComplexity), true
+
 	case "Verify.email":
 		if e.complexity.Verify.Email == nil {
 			break
@@ -1532,6 +1611,41 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Wallet.WalletID(childComplexity), true
 
+	case "Withdrawal.amount":
+		if e.complexity.Withdrawal.Amount == nil {
+			break
+		}
+
+		return e.complexity.Withdrawal.Amount(childComplexity), true
+
+	case "Withdrawal.from":
+		if e.complexity.Withdrawal.From == nil {
+			break
+		}
+
+		return e.complexity.Withdrawal.From(childComplexity), true
+
+	case "Withdrawal.status":
+		if e.complexity.Withdrawal.Status == nil {
+			break
+		}
+
+		return e.complexity.Withdrawal.Status(childComplexity), true
+
+	case "Withdrawal.timestamp":
+		if e.complexity.Withdrawal.Timestamp == nil {
+			break
+		}
+
+		return e.complexity.Withdrawal.Timestamp(childComplexity), true
+
+	case "Withdrawal.userid":
+		if e.complexity.Withdrawal.UserID == nil {
+			break
+		}
+
+		return e.complexity.Withdrawal.UserID(childComplexity), true
+
 	}
 	return 0, false
 }
@@ -1541,8 +1655,10 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 	ec := executionContext{rc, e, 0, 0, make(chan graphql.DeferredResult)}
 	inputUnmarshalMap := graphql.BuildUnmarshalerMap(
 		ec.unmarshalInputCreateDescriptionInput,
+		ec.unmarshalInputCreateInvestmentInput,
 		ec.unmarshalInputCreatePlanInput,
 		ec.unmarshalInputCreateUserInput,
+		ec.unmarshalInputCreateWithdrawalRequestInput,
 		ec.unmarshalInputEditWalletInput,
 		ec.unmarshalInputMakeTransfer,
 		ec.unmarshalInputUpdatePlanInput,
@@ -1662,6 +1778,54 @@ var parsedSchema = gqlparser.MustLoadSchema(sources...)
 
 // region    ***************************** args.gotpl *****************************
 
+func (ec *executionContext) field_Mutation_CreateInvestment_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 string
+	if tmp, ok := rawArgs["userID"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("userID"))
+		arg0, err = ec.unmarshalNID2string(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["userID"] = arg0
+	var arg1 model.CreateInvestmentInput
+	if tmp, ok := rawArgs["input"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
+		arg1, err = ec.unmarshalNCreateInvestmentInput2backendᚋgraphᚋmodelᚐCreateInvestmentInput(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["input"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_CreateWithdrawalRequest_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 string
+	if tmp, ok := rawArgs["userID"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("userID"))
+		arg0, err = ec.unmarshalNID2string(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["userID"] = arg0
+	var arg1 model.CreateWithdrawalRequestInput
+	if tmp, ok := rawArgs["input"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
+		arg1, err = ec.unmarshalNCreateWithdrawalRequestInput2backendᚋgraphᚋmodelᚐCreateWithdrawalRequestInput(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["input"] = arg1
+	return args, nil
+}
+
 func (ec *executionContext) field_Mutation_VerifyUser_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
@@ -1690,14 +1854,23 @@ func (ec *executionContext) field_Mutation_createNotification_args(ctx context.C
 	}
 	args["userID"] = arg0
 	var arg1 string
-	if tmp, ok := rawArgs["message"]; ok {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("message"))
+	if tmp, ok := rawArgs["title"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("title"))
 		arg1, err = ec.unmarshalNString2string(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
 	}
-	args["message"] = arg1
+	args["title"] = arg1
+	var arg2 string
+	if tmp, ok := rawArgs["message"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("message"))
+		arg2, err = ec.unmarshalNString2string(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["message"] = arg2
 	return args, nil
 }
 
@@ -2328,6 +2501,21 @@ func (ec *executionContext) field_Query_getUserVerificationToken_args(ctx contex
 		}
 	}
 	args["email"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_getUserWithdrawalRequests_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 string
+	if tmp, ok := rawArgs["userID"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("userID"))
+		arg0, err = ec.unmarshalNID2string(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["userID"] = arg0
 	return args, nil
 }
 
@@ -3534,6 +3722,8 @@ func (ec *executionContext) fieldContext_Mutation_createUser(ctx context.Context
 				return ec.fieldContext_User_lastName(ctx, field)
 			case "email":
 				return ec.fieldContext_User_email(ctx, field)
+			case "wallet":
+				return ec.fieldContext_User_wallet(ctx, field)
 			case "phone":
 				return ec.fieldContext_User_phone(ctx, field)
 			case "password":
@@ -3681,6 +3871,8 @@ func (ec *executionContext) fieldContext_Mutation_editUser(ctx context.Context, 
 				return ec.fieldContext_User_lastName(ctx, field)
 			case "email":
 				return ec.fieldContext_User_email(ctx, field)
+			case "wallet":
+				return ec.fieldContext_User_wallet(ctx, field)
 			case "phone":
 				return ec.fieldContext_User_phone(ctx, field)
 			case "password":
@@ -3922,6 +4114,68 @@ func (ec *executionContext) fieldContext_Mutation_deleteBalance(ctx context.Cont
 	return fc, nil
 }
 
+func (ec *executionContext) _Mutation_CreateInvestment(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_CreateInvestment(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().CreateInvestment(rctx, fc.Args["userID"].(string), fc.Args["input"].(model.CreateInvestmentInput))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*model.Investment)
+	fc.Result = res
+	return ec.marshalOInvestment2ᚖbackendᚋgraphᚋmodelᚐInvestment(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_CreateInvestment(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Investment_id(ctx, field)
+			case "userID":
+				return ec.fieldContext_Investment_userID(ctx, field)
+			case "amount":
+				return ec.fieldContext_Investment_amount(ctx, field)
+			case "timestamp":
+				return ec.fieldContext_Investment_timestamp(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Investment", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_CreateInvestment_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Mutation_deleteInvestment(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Mutation_deleteInvestment(ctx, field)
 	if err != nil {
@@ -3968,6 +4222,70 @@ func (ec *executionContext) fieldContext_Mutation_deleteInvestment(ctx context.C
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_deleteInvestment_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_CreateWithdrawalRequest(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_CreateWithdrawalRequest(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().CreateWithdrawalRequest(rctx, fc.Args["userID"].(string), fc.Args["input"].(model.CreateWithdrawalRequestInput))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*model.Withdrawal)
+	fc.Result = res
+	return ec.marshalOWithdrawal2ᚖbackendᚋgraphᚋmodelᚐWithdrawal(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_CreateWithdrawalRequest(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "userid":
+				return ec.fieldContext_Withdrawal_userid(ctx, field)
+			case "from":
+				return ec.fieldContext_Withdrawal_from(ctx, field)
+			case "amount":
+				return ec.fieldContext_Withdrawal_amount(ctx, field)
+			case "status":
+				return ec.fieldContext_Withdrawal_status(ctx, field)
+			case "timestamp":
+				return ec.fieldContext_Withdrawal_timestamp(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Withdrawal", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_CreateWithdrawalRequest_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -4433,7 +4751,7 @@ func (ec *executionContext) _Mutation_createNotification(ctx context.Context, fi
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().CreateNotification(rctx, fc.Args["userID"].(string), fc.Args["message"].(string))
+		return ec.resolvers.Mutation().CreateNotification(rctx, fc.Args["userID"].(string), fc.Args["title"].(string), fc.Args["message"].(string))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -4462,6 +4780,8 @@ func (ec *executionContext) fieldContext_Mutation_createNotification(ctx context
 				return ec.fieldContext_Notification_id(ctx, field)
 			case "userid":
 				return ec.fieldContext_Notification_userid(ctx, field)
+			case "title":
+				return ec.fieldContext_Notification_title(ctx, field)
 			case "message":
 				return ec.fieldContext_Notification_message(ctx, field)
 			case "seen":
@@ -4529,6 +4849,8 @@ func (ec *executionContext) fieldContext_Mutation_markNotificationAsSeen(ctx con
 				return ec.fieldContext_Notification_id(ctx, field)
 			case "userid":
 				return ec.fieldContext_Notification_userid(ctx, field)
+			case "title":
+				return ec.fieldContext_Notification_title(ctx, field)
 			case "message":
 				return ec.fieldContext_Notification_message(ctx, field)
 			case "seen":
@@ -5114,6 +5436,50 @@ func (ec *executionContext) fieldContext_Notification_userid(_ context.Context, 
 	return fc, nil
 }
 
+func (ec *executionContext) _Notification_title(ctx context.Context, field graphql.CollectedField, obj *model.Notification) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Notification_title(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Title, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Notification_title(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Notification",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Notification_message(ctx context.Context, field graphql.CollectedField, obj *model.Notification) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Notification_message(ctx, field)
 	if err != nil {
@@ -5587,6 +5953,8 @@ func (ec *executionContext) fieldContext_Query_getAllUsers(_ context.Context, fi
 				return ec.fieldContext_User_lastName(ctx, field)
 			case "email":
 				return ec.fieldContext_User_email(ctx, field)
+			case "wallet":
+				return ec.fieldContext_User_wallet(ctx, field)
 			case "phone":
 				return ec.fieldContext_User_phone(ctx, field)
 			case "password":
@@ -5668,6 +6036,8 @@ func (ec *executionContext) fieldContext_Query_getUser(ctx context.Context, fiel
 				return ec.fieldContext_User_lastName(ctx, field)
 			case "email":
 				return ec.fieldContext_User_email(ctx, field)
+			case "wallet":
+				return ec.fieldContext_User_wallet(ctx, field)
 			case "phone":
 				return ec.fieldContext_User_phone(ctx, field)
 			case "password":
@@ -5899,9 +6269,9 @@ func (ec *executionContext) _Query_getInvestment(ctx context.Context, field grap
 	if resTmp == nil {
 		return graphql.Null
 	}
-	res := resTmp.(*model.Investment)
+	res := resTmp.([]*model.Investment)
 	fc.Result = res
-	return ec.marshalOInvestment2ᚖbackendᚋgraphᚋmodelᚐInvestment(ctx, field.Selections, res)
+	return ec.marshalOInvestment2ᚕᚖbackendᚋgraphᚋmodelᚐInvestment(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_Query_getInvestment(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -7083,6 +7453,8 @@ func (ec *executionContext) fieldContext_Query_getAllNotification(_ context.Cont
 				return ec.fieldContext_Notification_id(ctx, field)
 			case "userid":
 				return ec.fieldContext_Notification_userid(ctx, field)
+			case "title":
+				return ec.fieldContext_Notification_title(ctx, field)
 			case "message":
 				return ec.fieldContext_Notification_message(ctx, field)
 			case "seen":
@@ -7136,6 +7508,8 @@ func (ec *executionContext) fieldContext_Query_getUserNotifications(ctx context.
 				return ec.fieldContext_Notification_id(ctx, field)
 			case "userid":
 				return ec.fieldContext_Notification_userid(ctx, field)
+			case "title":
+				return ec.fieldContext_Notification_title(ctx, field)
 			case "message":
 				return ec.fieldContext_Notification_message(ctx, field)
 			case "seen":
@@ -7501,6 +7875,123 @@ func (ec *executionContext) fieldContext_Query_getUserVerificationToken(ctx cont
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Query_getUserVerificationToken_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_getAllWithdrawalRequests(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_getAllWithdrawalRequests(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().GetAllWithdrawalRequests(rctx)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.([]*model.Withdrawal)
+	fc.Result = res
+	return ec.marshalOWithdrawal2ᚕᚖbackendᚋgraphᚋmodelᚐWithdrawal(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_getAllWithdrawalRequests(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "userid":
+				return ec.fieldContext_Withdrawal_userid(ctx, field)
+			case "from":
+				return ec.fieldContext_Withdrawal_from(ctx, field)
+			case "amount":
+				return ec.fieldContext_Withdrawal_amount(ctx, field)
+			case "status":
+				return ec.fieldContext_Withdrawal_status(ctx, field)
+			case "timestamp":
+				return ec.fieldContext_Withdrawal_timestamp(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Withdrawal", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_getUserWithdrawalRequests(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_getUserWithdrawalRequests(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().GetUserWithdrawalRequests(rctx, fc.Args["userID"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.([]*model.Withdrawal)
+	fc.Result = res
+	return ec.marshalOWithdrawal2ᚕᚖbackendᚋgraphᚋmodelᚐWithdrawal(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_getUserWithdrawalRequests(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "userid":
+				return ec.fieldContext_Withdrawal_userid(ctx, field)
+			case "from":
+				return ec.fieldContext_Withdrawal_from(ctx, field)
+			case "amount":
+				return ec.fieldContext_Withdrawal_amount(ctx, field)
+			case "status":
+				return ec.fieldContext_Withdrawal_status(ctx, field)
+			case "timestamp":
+				return ec.fieldContext_Withdrawal_timestamp(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Withdrawal", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_getUserWithdrawalRequests_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -8477,6 +8968,47 @@ func (ec *executionContext) fieldContext_User_email(_ context.Context, field gra
 	return fc, nil
 }
 
+func (ec *executionContext) _User_wallet(ctx context.Context, field graphql.CollectedField, obj *model.User) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_User_wallet(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Wallet, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalOString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_User_wallet(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "User",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _User_phone(ctx context.Context, field graphql.CollectedField, obj *model.User) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_User_phone(ctx, field)
 	if err != nil {
@@ -9083,6 +9615,8 @@ func (ec *executionContext) fieldContext_User_notification(_ context.Context, fi
 				return ec.fieldContext_Notification_id(ctx, field)
 			case "userid":
 				return ec.fieldContext_Notification_userid(ctx, field)
+			case "title":
+				return ec.fieldContext_Notification_title(ctx, field)
 			case "message":
 				return ec.fieldContext_Notification_message(ctx, field)
 			case "seen":
@@ -9347,6 +9881,217 @@ func (ec *executionContext) fieldContext_Wallet_address(_ context.Context, field
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Withdrawal_userid(ctx context.Context, field graphql.CollectedField, obj *model.Withdrawal) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Withdrawal_userid(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.UserID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Withdrawal_userid(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Withdrawal",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Withdrawal_from(ctx context.Context, field graphql.CollectedField, obj *model.Withdrawal) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Withdrawal_from(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.From, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalOString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Withdrawal_from(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Withdrawal",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Withdrawal_amount(ctx context.Context, field graphql.CollectedField, obj *model.Withdrawal) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Withdrawal_amount(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Amount, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(float64)
+	fc.Result = res
+	return ec.marshalNFloat2float64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Withdrawal_amount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Withdrawal",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Withdrawal_status(ctx context.Context, field graphql.CollectedField, obj *model.Withdrawal) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Withdrawal_status(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Status, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	fc.Result = res
+	return ec.marshalOBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Withdrawal_status(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Withdrawal",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Withdrawal_timestamp(ctx context.Context, field graphql.CollectedField, obj *model.Withdrawal) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Withdrawal_timestamp(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Withdrawal().Timestamp(rctx, obj)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Withdrawal_timestamp(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Withdrawal",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type String does not have child fields")
 		},
@@ -11154,6 +11899,40 @@ func (ec *executionContext) unmarshalInputCreateDescriptionInput(ctx context.Con
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputCreateInvestmentInput(ctx context.Context, obj interface{}) (model.CreateInvestmentInput, error) {
+	var it model.CreateInvestmentInput
+	asMap := map[string]interface{}{}
+	for k, v := range obj.(map[string]interface{}) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"amount", "timestamp"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "amount":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("amount"))
+			data, err := ec.unmarshalNFloat2float64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Amount = data
+		case "timestamp":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("timestamp"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Timestamp = data
+		}
+	}
+
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputCreatePlanInput(ctx context.Context, obj interface{}) (model.CreatePlanInput, error) {
 	var it model.CreatePlanInput
 	asMap := map[string]interface{}{}
@@ -11223,7 +12002,7 @@ func (ec *executionContext) unmarshalInputCreateUserInput(ctx context.Context, o
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"userImage", "firstName", "lastName", "email", "phone", "password", "city", "country", "type"}
+	fieldsInOrder := [...]string{"userImage", "firstName", "lastName", "email", "wallet", "phone", "password", "city", "country", "type"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -11258,6 +12037,13 @@ func (ec *executionContext) unmarshalInputCreateUserInput(ctx context.Context, o
 				return it, err
 			}
 			it.Email = data
+		case "wallet":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("wallet"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Wallet = data
 		case "phone":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("phone"))
 			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
@@ -11293,6 +12079,54 @@ func (ec *executionContext) unmarshalInputCreateUserInput(ctx context.Context, o
 				return it, err
 			}
 			it.Type = data
+		}
+	}
+
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputCreateWithdrawalRequestInput(ctx context.Context, obj interface{}) (model.CreateWithdrawalRequestInput, error) {
+	var it model.CreateWithdrawalRequestInput
+	asMap := map[string]interface{}{}
+	for k, v := range obj.(map[string]interface{}) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"userid", "from", "amount", "timestamp"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "userid":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("userid"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Userid = data
+		case "from":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("from"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.From = data
+		case "amount":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("amount"))
+			data, err := ec.unmarshalNFloat2float64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Amount = data
+		case "timestamp":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("timestamp"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Timestamp = data
 		}
 	}
 
@@ -11944,9 +12778,17 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_deleteBalance(ctx, field)
 			})
+		case "CreateInvestment":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_CreateInvestment(ctx, field)
+			})
 		case "deleteInvestment":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_deleteInvestment(ctx, field)
+			})
+		case "CreateWithdrawalRequest":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_CreateWithdrawalRequest(ctx, field)
 			})
 		case "deleteCredit":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
@@ -12071,6 +12913,11 @@ func (ec *executionContext) _Notification(ctx context.Context, sel ast.Selection
 			}
 		case "userid":
 			out.Values[i] = ec._Notification_userid(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "title":
+			out.Values[i] = ec._Notification_title(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				atomic.AddUint32(&out.Invalids, 1)
 			}
@@ -12837,6 +13684,44 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "getAllWithdrawalRequests":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_getAllWithdrawalRequests(ctx, field)
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "getUserWithdrawalRequests":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_getUserWithdrawalRequests(ctx, field)
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
 		case "__type":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Query___type(ctx, field)
@@ -13169,6 +14054,8 @@ func (ec *executionContext) _User(ctx context.Context, sel ast.SelectionSet, obj
 			out.Values[i] = ec._User_lastName(ctx, field, obj)
 		case "email":
 			out.Values[i] = ec._User_email(ctx, field, obj)
+		case "wallet":
+			out.Values[i] = ec._User_wallet(ctx, field, obj)
 		case "phone":
 			out.Values[i] = ec._User_phone(ctx, field, obj)
 		case "password":
@@ -13589,6 +14476,87 @@ func (ec *executionContext) _Wallet(ctx context.Context, sel ast.SelectionSet, o
 	return out
 }
 
+var withdrawalImplementors = []string{"Withdrawal"}
+
+func (ec *executionContext) _Withdrawal(ctx context.Context, sel ast.SelectionSet, obj *model.Withdrawal) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, withdrawalImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("Withdrawal")
+		case "userid":
+			out.Values[i] = ec._Withdrawal_userid(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "from":
+			out.Values[i] = ec._Withdrawal_from(ctx, field, obj)
+		case "amount":
+			out.Values[i] = ec._Withdrawal_amount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "status":
+			out.Values[i] = ec._Withdrawal_status(ctx, field, obj)
+		case "timestamp":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Withdrawal_timestamp(ctx, field, obj)
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var __DirectiveImplementors = []string{"__Directive"}
 
 func (ec *executionContext) ___Directive(ctx context.Context, sel ast.SelectionSet, obj *introspection.Directive) graphql.Marshaler {
@@ -13930,6 +14898,11 @@ func (ec *executionContext) marshalNBoolean2bool(ctx context.Context, sel ast.Se
 	return res
 }
 
+func (ec *executionContext) unmarshalNCreateInvestmentInput2backendᚋgraphᚋmodelᚐCreateInvestmentInput(ctx context.Context, v interface{}) (model.CreateInvestmentInput, error) {
+	res, err := ec.unmarshalInputCreateInvestmentInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
 func (ec *executionContext) unmarshalNCreatePlanInput2backendᚋgraphᚋmodelᚐCreatePlanInput(ctx context.Context, v interface{}) (model.CreatePlanInput, error) {
 	res, err := ec.unmarshalInputCreatePlanInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -13940,9 +14913,29 @@ func (ec *executionContext) unmarshalNCreateUserInput2backendᚋgraphᚋmodelᚐ
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
+func (ec *executionContext) unmarshalNCreateWithdrawalRequestInput2backendᚋgraphᚋmodelᚐCreateWithdrawalRequestInput(ctx context.Context, v interface{}) (model.CreateWithdrawalRequestInput, error) {
+	res, err := ec.unmarshalInputCreateWithdrawalRequestInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
 func (ec *executionContext) unmarshalNEditWalletInput2backendᚋgraphᚋmodelᚐEditWalletInput(ctx context.Context, v interface{}) (model.EditWalletInput, error) {
 	res, err := ec.unmarshalInputEditWalletInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalNFloat2float64(ctx context.Context, v interface{}) (float64, error) {
+	res, err := graphql.UnmarshalFloatContext(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNFloat2float64(ctx context.Context, sel ast.SelectionSet, v float64) graphql.Marshaler {
+	res := graphql.MarshalFloatContext(v)
+	if res == graphql.Null {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+	}
+	return graphql.WrapContextMarshaler(ctx, res)
 }
 
 func (ec *executionContext) unmarshalNID2string(ctx context.Context, v interface{}) (string, error) {
@@ -15048,6 +16041,54 @@ func (ec *executionContext) marshalOWallet2ᚖbackendᚋgraphᚋmodelᚐWallet(c
 		return graphql.Null
 	}
 	return ec._Wallet(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalOWithdrawal2ᚕᚖbackendᚋgraphᚋmodelᚐWithdrawal(ctx context.Context, sel ast.SelectionSet, v []*model.Withdrawal) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalOWithdrawal2ᚖbackendᚋgraphᚋmodelᚐWithdrawal(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	return ret
+}
+
+func (ec *executionContext) marshalOWithdrawal2ᚖbackendᚋgraphᚋmodelᚐWithdrawal(ctx context.Context, sel ast.SelectionSet, v *model.Withdrawal) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._Withdrawal(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalO__EnumValue2ᚕgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐEnumValueᚄ(ctx context.Context, sel ast.SelectionSet, v []introspection.EnumValue) graphql.Marshaler {

@@ -5,6 +5,7 @@ type User {
   firstName: String
   lastName: String
   email: String
+  wallet: String
   phone: String
   password: String
   city: String
@@ -87,6 +88,7 @@ type Transaction {
 type Notification {
   id: ID!
   userid: ID!
+  title: String!
   message: String!
   seen: Boolean!
   timestamp: String
@@ -124,6 +126,13 @@ type ResetPassword {
   password: String
 }
 
+type Withdrawal{
+  userid: String!
+  from: String
+  amount: Float!
+  status: Boolean
+  timestamp: String
+}
 
 type Query {
   getAllUsers: [User]
@@ -131,7 +140,7 @@ type Query {
   getAllBalances: [Balance]
   getBalance(userID: ID!): Balance
   getAllInvestments: [Investment]
-  getInvestment(userID: ID!): Investment
+  getInvestment(userID: ID!): [Investment]
   getAllCredits: [Credit]
   getCredit(userID: ID!): Credit
   getAllReferences: [Reference]
@@ -159,6 +168,8 @@ type Query {
   getPlan(planID: ID!): Plan
   getWallet: Wallet
   getUserVerificationToken(email: String!): Verify
+  getAllWithdrawalRequests: [Withdrawal]
+  getUserWithdrawalRequests(userID: ID!) : [Withdrawal]
 }
 
 input CreateUserInput {
@@ -166,6 +177,7 @@ input CreateUserInput {
   firstName: String
   lastName: String
   email: String
+  wallet: String
   phone: String
   password: String
   city: String
@@ -207,6 +219,17 @@ input EditWalletInput {
 
 }
 
+input CreateInvestmentInput {
+  amount: Float!
+  timestamp: String
+}
+
+input CreateWithdrawalRequestInput {
+  userid: String!
+  from: String
+  amount: Float!
+  timestamp: String
+}
 type Mutation {
   createUser(input: CreateUserInput!): User
   login(email: String!, password: String!): String!
@@ -215,7 +238,9 @@ type Mutation {
   deleteAllUsers: Boolean
   deleteUser(userID: ID!): Boolean
   deleteBalance(id: ID!): Boolean
+  CreateInvestment(userID: ID!, input: CreateInvestmentInput!):Investment
   deleteInvestment(id: ID!): Boolean
+  CreateWithdrawalRequest(userID: ID!,input: CreateWithdrawalRequestInput!):Withdrawal
   deleteCredit(id: ID!): Boolean
   deleteReference(id: ID!): Boolean
   deleteAllMemos: Boolean
@@ -225,7 +250,7 @@ type Mutation {
   makeTransaction(input: MakeTransfer!): Transaction
   deleteAllTransactions: Boolean
   deleteTransaction(id: ID!): Boolean
-  createNotification(userID: ID!, message: String!): Notification!
+  createNotification(userID: ID!, title: String!, message: String!): Notification!
   markNotificationAsSeen(id: String!): Notification!
   deleteAllUnverifiedEmails: [Verify]
   deleteUnverifiedEmail(email: String!): Verify

@@ -10,10 +10,11 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-func CreateNotification(ctx context.Context, collection *mongo.Collection, userID, message string) error {
+func CreateNotification(ctx context.Context, collection *mongo.Collection, userID, title, message string) error {
 	notification := &model.Notification{
 		ID:        uuid.New().String(),
 		UserID:    userID,
+		Title:     title,
 		Message:   message,
 		Timestamp: time.Now(),
 	}

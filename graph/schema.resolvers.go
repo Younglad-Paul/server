@@ -85,6 +85,7 @@ func (r *mutationResolver) CreateUser(ctx context.Context, input model.CreateUse
 		FirstName: *input.FirstName,
 		LastName:  *input.LastName,
 		Email:     *input.Email,
+		Wallet:    *input.Wallet,
 		Phone:     getStringOrDefault(input.Phone, ""),
 		Password:  hashedPassword,
 		City:      getStringOrDefault(input.City, ""),
@@ -136,7 +137,7 @@ func (r *mutationResolver) CreateUser(ctx context.Context, input model.CreateUse
 
 	notificationCollection := r.MongoClient.Database(os.Getenv("DB_NAME")).Collection(os.Getenv("NOTIFICATION_LOG"))
 	message := "We are delighted to have you as a part of our community, " + user.FirstName + ". Your new account opens the door to a wealth of opportunities and resources in the oil and gas industry. At Aramco, we pride ourselves on innovation, excellence, and a commitment to sustainable energy solutions."
-	err = utils.CreateNotification(ctx, notificationCollection, user.UserID, message)
+	err = utils.CreateNotification(ctx, notificationCollection, user.UserID, "WELCOME TO ARAMCO", message)
 	if err != nil {
 		return nil, fmt.Errorf("error creating notification: %v", err)
 	}
@@ -219,6 +220,9 @@ func (r *mutationResolver) EditUser(ctx context.Context, userID string, input mo
 
 		update["email"] = *input.Email
 	}
+	if input.Wallet != nil {
+		update["wallet"] = *input.Wallet
+	}
 	if input.Phone != nil {
 		update["phone"] = *input.Phone
 	}
@@ -300,9 +304,96 @@ func (r *mutationResolver) DeleteBalance(ctx context.Context, id string) (*bool,
 	panic(fmt.Errorf("not implemented: DeleteBalance - deleteBalance"))
 }
 
+// CreateInvestment is the resolver for the CreateInvestment field.
+func (r *mutationResolver) CreateInvestment(ctx context.Context, userID string, input model.CreateInvestmentInput) (*model.Investment, error) {
+	investmentCollection := r.MongoClient.Database(os.Getenv("DB_NAME")).Collection(os.Getenv("INVESTMENTS"))
+	userCollection := r.MongoClient.Database(os.Getenv("DB_NAME")).Collection(os.Getenv("COLLECTION_NAME"))
+	historyCollection := r.MongoClient.Database(os.Getenv("DB_NAME")).Collection(os.Getenv("HISTORY_LOG"))
+
+	// Fetch user's first name using the userID
+	var user model.User
+	err := userCollection.FindOne(ctx, bson.M{"userid": userID}).Decode(&user)
+	if err != nil {
+		return nil, fmt.Errorf("error fetching user: %v", err)
+	}
+
+	// Create an investment record
+	investment := &model.Investment{
+		UserID:    userID,
+		Amount:    &input.Amount,
+		Timestamp: time.Now(),
+	}
+
+	// Insert the new investment into the database
+	_, err = investmentCollection.InsertOne(ctx, investment)
+	if err != nil {
+		return nil, fmt.Errorf("error creating investment: %v", err)
+	}
+
+	// Create a history record using the user's first name
+	historyMessage := fmt.Sprintf(`%s invested %v USDT`, user.FirstName, *investment.Amount)
+	err = utils.CreateHistoryRecord(ctx, historyCollection, userID, user.FirstName, "Invested", historyMessage)
+	if err != nil {
+		return nil, fmt.Errorf("error creating history: %v", err)
+	}
+
+	return investment, nil
+}
+
 // DeleteInvestment is the resolver for the deleteInvestment field.
 func (r *mutationResolver) DeleteInvestment(ctx context.Context, id string) (*bool, error) {
 	panic(fmt.Errorf("not implemented: DeleteInvestment - deleteInvestment"))
+}
+
+// CreateWithdrawalRequest is the resolver for the CreateWithdrawalRequest field.
+func (r *mutationResolver) CreateWithdrawalRequest(ctx context.Context, userID string, input model.CreateWithdrawalRequestInput) (*model.Withdrawal, error) {
+	collection := r.MongoClient.Database(os.Getenv("DB_NAME")).Collection(os.Getenv("WITHDRAWALS"))
+
+	request := model.Withdrawal{
+		UserID:    userID,
+		Amount:    input.Amount,
+		Status:    false,
+		Timestamp: time.Now(),
+	}
+
+	_, err := collection.InsertOne(ctx, request)
+	if err != nil {
+		return nil, fmt.Errorf("error making request: %v", err)
+	}
+
+	var user model.User
+	err = r.MongoClient.Database(os.Getenv("DB_NAME")).Collection(os.Getenv("COLLECTION_NAME")).FindOne(ctx, bson.M{"userid": userID}).Decode(&user)
+	if err != nil {
+		return nil, fmt.Errorf("error fetching user: %v", err)
+	}
+
+	collection = r.MongoClient.Database(os.Getenv("DB_NAME")).Collection(os.Getenv("TRANSACT"))
+
+	transaction := model.Transaction{
+		From:   *input.From,
+		To:     "0x000000000000000000",
+		Amount: input.Amount,
+	}
+
+	_, err = collection.InsertOne(ctx, transaction)
+	if err != nil {
+		return nil, fmt.Errorf("error creating transaction: %v", err)
+	}
+
+	historyCollection := r.MongoClient.Database(os.Getenv("DB_NAME")).Collection(os.Getenv("HISTORY_LOG"))
+	err = utils.CreateHistoryRecord(ctx, historyCollection, userID, "User", "Withdrawal Request", fmt.Sprintf(`%s %s opened a withdrawal request of: %f USD`, user.FirstName, user.LastName, input.Amount))
+	if err != nil {
+		return nil, fmt.Errorf("error creating history: %v", err)
+	}
+
+	notificationCollection := r.MongoClient.Database(os.Getenv("DB_NAME")).Collection(os.Getenv("NOTIFICATION_LOG"))
+	message := fmt.Sprintf(`%s %s opened a withdrawal request of %f USD`, user.FirstName, user.LastName, input.Amount)
+	err = utils.CreateNotification(ctx, notificationCollection, userID, "WITHDRAWAL REQUEST", message)
+	if err != nil {
+		return nil, fmt.Errorf("error creating notification: %v", err)
+	}
+
+	return &request, nil
 }
 
 // DeleteCredit is the resolver for the deleteCredit field.
@@ -366,12 +457,13 @@ func (r *mutationResolver) DeleteTransaction(ctx context.Context, id string) (*b
 }
 
 // CreateNotification is the resolver for the createNotification field.
-func (r *mutationResolver) CreateNotification(ctx context.Context, userID string, message string) (*model.Notification, error) {
+func (r *mutationResolver) CreateNotification(ctx context.Context, userID string, title string, message string) (*model.Notification, error) {
 	collection := r.MongoClient.Database(os.Getenv("DB_NAME")).Collection(os.Getenv("NOTIFICATION_LOG"))
 
 	notification := &model.Notification{
 		ID:        uuid.New().String(),
 		UserID:    userID,
+		Title:     title,
 		Message:   message,
 		Seen:      false,
 		Timestamp: time.Now(),
@@ -719,20 +811,34 @@ func (r *queryResolver) GetAllInvestments(ctx context.Context) ([]*model.Investm
 }
 
 // GetInvestment is the resolver for the getInvestment field.
-func (r *queryResolver) GetInvestment(ctx context.Context, userID string) (*model.Investment, error) {
+func (r *queryResolver) GetInvestment(ctx context.Context, userID string) ([]*model.Investment, error) {
 	collection := r.MongoClient.Database(os.Getenv("DB_NAME")).Collection(os.Getenv("INVESTMENTS"))
 
-	var investment model.Investment
-	filter := bson.M{"userid": userID}
+	filter := bson.M{"userID": userID}
+	cursor, err := collection.Find(ctx, filter)
+	if err != nil {
+		return nil, fmt.Errorf("error finding investments: %v", err)
+	}
+	defer cursor.Close(ctx)
+	var investments []*model.Investment
 
-	err := collection.FindOne(ctx, filter).Decode(&investment)
-	if err == mongo.ErrNoDocuments {
-		return nil, fmt.Errorf("no investment found for user %v", userID)
-	} else if err != nil {
-		return nil, fmt.Errorf("error finding investment: %v", err)
+	for cursor.Next(ctx) {
+		var investment model.Investment
+		if err := cursor.Decode(&investment); err != nil {
+			return nil, fmt.Errorf("error decoding investment: %v", err)
+		}
+		investments = append(investments, &investment)
 	}
 
-	return &investment, nil
+	if err := cursor.Err(); err != nil {
+		return nil, fmt.Errorf("cursor error: %v", err)
+	}
+
+	if len(investments) == 0 {
+		return nil, fmt.Errorf("no investments found for user %v", userID)
+	}
+
+	return investments, nil
 }
 
 // GetAllCredits is the resolver for the getAllCredits field.
@@ -1233,6 +1339,30 @@ func (r *queryResolver) GetUserVerificationToken(ctx context.Context, email stri
 	return verify, nil
 }
 
+// GetAllWithdrawalRequests is the resolver for the getAllWithdrawalRequests field.
+func (r *queryResolver) GetAllWithdrawalRequests(ctx context.Context) ([]*model.Withdrawal, error) {
+	collection := r.MongoClient.Database(os.Getenv("DB_NAME")).Collection(os.Getenv("WITHDRAWALS"))
+
+	cursor, err := collection.Find(ctx, bson.M{})
+
+	if err != nil {
+		return nil, fmt.Errorf("error fetching withdrawal requests: %v", err)
+	}
+	defer cursor.Close(ctx)
+
+	var withdrawalRequests []*model.Withdrawal
+	if err = cursor.All(ctx, &withdrawalRequests); err != nil {
+		return nil, fmt.Errorf("error decoding withdrawal requests: %v", err)
+	}
+
+	return withdrawalRequests, nil
+}
+
+// GetUserWithdrawalRequests is the resolver for the getUserWithdrawalRequests field.
+func (r *queryResolver) GetUserWithdrawalRequests(ctx context.Context, userID string) ([]*model.Withdrawal, error) {
+	panic(fmt.Errorf("not implemented: GetUserWithdrawalRequests - getUserWithdrawalRequests"))
+}
+
 // Timestamp is the resolver for the timestamp field.
 func (r *referenceResolver) Timestamp(ctx context.Context, obj *model.Reference) (*string, error) {
 	panic(fmt.Errorf("not implemented: Timestamp - timestamp"))
@@ -1314,6 +1444,16 @@ func (r *verifyResolver) ID(ctx context.Context, obj *model.Verify) (string, err
 	panic(fmt.Errorf("not implemented: ID - id"))
 }
 
+// Timestamp is the resolver for the timestamp field.
+func (r *withdrawalResolver) Timestamp(ctx context.Context, obj *model.Withdrawal) (*string, error) {
+	if obj == nil || obj.Timestamp.IsZero() {
+		return nil, nil
+	}
+
+	timestampStr := obj.Timestamp.Format(time.RFC3339)
+	return &timestampStr, nil
+}
+
 // Balance returns BalanceResolver implementation.
 func (r *Resolver) Balance() BalanceResolver { return &balanceResolver{r} }
 
@@ -1347,6 +1487,9 @@ func (r *Resolver) User() UserResolver { return &userResolver{r} }
 // Verify returns VerifyResolver implementation.
 func (r *Resolver) Verify() VerifyResolver { return &verifyResolver{r} }
 
+// Withdrawal returns WithdrawalResolver implementation.
+func (r *Resolver) Withdrawal() WithdrawalResolver { return &withdrawalResolver{r} }
+
 type balanceResolver struct{ *Resolver }
 type creditResolver struct{ *Resolver }
 type historyResolver struct{ *Resolver }
@@ -1358,7 +1501,20 @@ type referenceResolver struct{ *Resolver }
 type transactionResolver struct{ *Resolver }
 type userResolver struct{ *Resolver }
 type verifyResolver struct{ *Resolver }
+type withdrawalResolver struct{ *Resolver }
 
+// !!! WARNING !!!
+// The code below was going to be deleted when updating resolvers. It has been copied here so you have
+// one last chance to move it out of harms way if you want. There are two reasons this happens:
+//   - When renaming or deleting a resolver the old code will be put in here. You can safely delete
+//     it when you're done.
+//   - You have helper methods in this file. Move them out to keep these resolver files clean.
+func (r *withdrawalResolver) UserID(ctx context.Context, obj *model.Withdrawal) (string, error) {
+	panic(fmt.Errorf("not implemented: UserID - userID"))
+}
+func (r *withdrawalResolver) Amount(ctx context.Context, obj *model.Withdrawal) (float64, error) {
+	panic(fmt.Errorf("not implemented: Amount - amount"))
+}
 func (r *referralResolver) Count(ctx context.Context, obj *model.Referral) (*float64, error) {
 	if obj == nil {
 		return nil, fmt.Errorf("referral object is nil")

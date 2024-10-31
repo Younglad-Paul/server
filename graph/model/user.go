@@ -6,9 +6,10 @@ type User struct {
 	FirstName string
 	LastName  string
 	Email     string
+	Wallet    string
 	Phone     string
 	Password  string
 	City      string
 	Country   string
-	Type	  string
+	Type      string
 }

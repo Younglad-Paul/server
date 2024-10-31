@@ -6,6 +6,11 @@ type CreateDescriptionInput struct {
 	Point string `json:"point"`
 }
 
+type CreateInvestmentInput struct {
+	Amount    float64 `json:"amount"`
+	Timestamp *string `json:"timestamp,omitempty"`
+}
+
 type CreatePlanInput struct {
 	Title        string                    `json:"title"`
 	Amount       string                    `json:"amount"`
@@ -20,11 +25,19 @@ type CreateUserInput struct {
 	FirstName *string `json:"firstName,omitempty"`
 	LastName  *string `json:"lastName,omitempty"`
 	Email     *string `json:"email,omitempty"`
+	Wallet    *string `json:"wallet,omitempty"`
 	Phone     *string `json:"phone,omitempty"`
 	Password  *string `json:"password,omitempty"`
 	City      *string `json:"city,omitempty"`
 	Country   *string `json:"country,omitempty"`
 	Type      *string `json:"type,omitempty"`
+}
+
+type CreateWithdrawalRequestInput struct {
+	Userid    string  `json:"userid"`
+	From      *string `json:"from,omitempty"`
+	Amount    float64 `json:"amount"`
+	Timestamp *string `json:"timestamp,omitempty"`
 }
 
 type EditWalletInput struct {
